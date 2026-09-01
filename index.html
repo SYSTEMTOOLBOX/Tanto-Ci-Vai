@@ -16,7 +16,7 @@
 <body>
 <div id="authView" class="authwrap"><section class="authcard"><div class="authlogo">📍</div><h1>Tanto ci vai?</h1><p>Accedi oppure crea il profilo per chiedere una mano o prendere una commissione.</p><div class="tabs"><button id="loginTab" class="tab on" onclick="setAuthMode('login')">Accedi</button><button id="signupTab" class="tab" onclick="setAuthMode('signup')">Registrati</button></div><div id="signupFields" class="hidden"><div class="field"><label>NOME</label><input id="authName" autocomplete="name" placeholder="Il tuo nome"></div><div class="field"><label>TELEFONO</label><input id="authPhone" inputmode="tel" autocomplete="tel" placeholder="Numero di telefono"></div></div><div class="field"><label>EMAIL</label><input id="authEmail" type="email" autocomplete="email" placeholder="nome@email.it"></div><div class="field"><label>PASSWORD</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimo 6 caratteri"></div><button id="authBtn" class="btn teal full" onclick="submitAuth()">Accedi</button><div id="authStatus" class="status">La sessione resta salvata sul dispositivo in modo sicuro tramite Supabase Auth.</div></section></div>
 
-<div id="appView" class="app hidden"><header class="top"><div class="toprow"><div class="brand"><div class="logo">📦</div><div><b>Tanto ci vai?</b><small id="userLabel">Rete di prossimità locale</small></div></div><button id="avatar" class="avatar" onclick="page('profile')">TC</button></div><div class="loc"><span id="liveLocation">📍 Rilevo posizione…</span><span id="syncBadge" class="pilot">● ONLINE</span></div></header>
+<div id="appView" class="app hidden"><header class="top"><div class="toprow"><div class="brand"><div class="logo">📦</div><div><b>Tanto ci vai?</b><small id="userLabel">Rete di prossimità locale</small></div></div><button id="avatar" class="avatar" onclick="page('profile')">TC</button></div><div class="loc"><span id="liveLocation">📍 Posizione non condivisa</span><span id="syncBadge" class="pilot">● ONLINE</span></div></header>
 <main id="home"><section class="hero"><div class="eyebrow">TANTO CI VAI?</div><h1>Uno spostamento può aiutare più di una persona.</h1><p>Le richieste vengono condivise e aggiornate in tempo reale.</p><div class="stats"><div class="stat"><b id="statOpen">0</b><span>richieste aperte</span></div><div class="stat"><b id="statMine">0</b><span>mie richieste</span></div><div class="stat"><b id="statMissions">0</b><span>missioni assegnate</span></div></div></section><div class="sect"><h2>Cosa vuoi fare?</h2><span>Servizio attivo</span></div><section class="actions"><button class="action help" onclick="openNewRequest()"><div class="ico">🙋</div><b>Mi serve una mano</b><p>Pubblica una commissione con ritiro, consegna e compenso.</p><div class="arrow">→</div></button><button class="action go" onclick="openTripSearch()"><div class="ico">🚗</div><b>Sto già andando</b><p>Calcola la tua strada reale e trova richieste compatibili.</p><div class="arrow">→</div></button></section><div class="sect"><h2>Richieste disponibili</h2><span id="feedStatus">Sincronizzate</span></div><section id="feed" class="feed"></section></main>
 <main id="missions" class="hidden"></main><main id="myreq" class="hidden"></main><main id="mapPage" class="hidden"></main><main id="profile" class="hidden"></main></div>
 <nav id="bottomNav" class="bottom hidden"><button class="nav active" data-p="home" onclick="page('home')">⌂<small>Home</small></button><button class="nav" data-p="missions" onclick="page('missions')">⇄<small>Missioni</small></button><button class="nav" onclick="openNewRequest()"><span style="color:var(--blue);font-size:26px">＋</span><small>Richiedi</small></button><button class="nav" data-p="myreq" onclick="page('myreq')">☷<small>Le mie</small></button><button class="nav" data-p="mapPage" onclick="page('mapPage')">⌖<small>Mappa</small></button></nav>
@@ -33,18 +33,7 @@ const euro=n=>'€ '+Number(n||0).toFixed(2).replace('.',',');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setAuthMode(m){AUTH_MODE=m;loginTab.classList.toggle('on',m==='login');signupTab.classList.toggle('on',m==='signup');signupFields.classList.toggle('hidden',m!=='signup');authBtn.textContent=m==='login'?'Accedi':'Crea profilo';authStatus.textContent=m==='login'?'Accedi con email e password.':'Il nome e il telefono verranno salvati nel tuo profilo.'}
 async function submitAuth(){let email=authEmail.value.trim(),password=authPassword.value;if(!email||password.length<6){authStatus.textContent='Inserisci una email valida e una password di almeno 6 caratteri.';return}authBtn.disabled=true;try{if(AUTH_MODE==='signup'){let nome=authName.value.trim(),telefono=authPhone.value.trim();if(!nome){authStatus.textContent='Inserisci il nome.';return}let {data,error}=await db.auth.signUp({email,password,options:{data:{nome,telefono},emailRedirectTo:location.origin+location.pathname}});if(error)throw error;if(!data.session){authStatus.textContent='Registrazione creata. Controlla la tua email e conferma il link, poi torna qui e accedi.';return}await afterLogin(data.session)}else{let {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;await afterLogin(data.session)}}catch(e){authStatus.textContent='Errore: '+e.message}finally{authBtn.disabled=false}}
-async function afterLogin(session){SESSION=session;authView.classList.add('hidden');appView.classList.remove('hidden');bottomNav.classList.remove('hidden');await ensureProfile();initLiveGps();await loadRequests();subscribeRealtime();renderAll()}
-async function initLiveGps(){
-  let el=document.getElementById('liveLocation');if(!el)return;
-  if(!navigator.geolocation){el.textContent='📍 GPS non disponibile';return}
-  el.textContent='📍 Rilevo posizione…';
-  try{
-    let p=await currentPosition();USER_POS={lat:p.lat,lng:p.lng};
-    let rp=await reverseGeocodePoint({lat:p.lat,lng:p.lng});
-    let label=rp.area||(rp.label?rp.label.split(',')[0]:'Posizione rilevata');
-    el.textContent='📍 '+label;
-  }catch(e){el.textContent='📍 Attiva posizione'}
-}
+async function afterLogin(session){SESSION=session;authView.classList.add('hidden');appView.classList.remove('hidden');bottomNav.classList.remove('hidden');await ensureProfile();await loadRequests();subscribeRealtime();renderAll()}
 async function ensureProfile(){let uid=SESSION.user.id;let {data}=await db.from('profiles').select('*').eq('id',uid).maybeSingle();if(!data){let meta=SESSION.user.user_metadata||{};await db.from('profiles').insert({id:uid,nome:meta.nome||'',telefono:meta.telefono||''});({data}=await db.from('profiles').select('*').eq('id',uid).maybeSingle())}PROFILE=data||{id:uid,nome:'Utente',telefono:''};let initials=(PROFILE.nome||'TC').split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();avatar.textContent=initials||'TC';userLabel.textContent=PROFILE.nome||SESSION.user.email}
 async function loadRequests(){feedStatus.textContent='Aggiorno…';let {data,error}=await db.from('consegne').select('*').order('created_at',{ascending:false});if(error){feedStatus.textContent='Errore sync';throw error}REQUESTS=data||[];feedStatus.textContent='Sincronizzate'}
 function subscribeRealtime(){if(CHANNEL)db.removeChannel(CHANNEL);CHANNEL=db.channel('tcv-consegne').on('postgres_changes',{event:'*',schema:'public',table:'consegne'},async()=>{syncBadge.textContent='● SYNC';await loadRequests();renderAll();setTimeout(()=>syncBadge.textContent='● ONLINE',700)}).subscribe()}
@@ -344,6 +333,7 @@ function chooseDeliveryCity(i){
   let f=DELIVERY_CITY_RESULTS[i];if(!f)return;let pt=photonFeatureToPoint(f),input=document.getElementById('nrCity');
   if(input)input.value=f.properties?.name||pt.city;DELIVERY_CITY_POS=pt;HOME_POS=null;
   let box=document.getElementById('deliveryCitySuggest');if(box)box.innerHTML='';
+  if(DELIVERY_MAP)DELIVERY_MAP.setView([pt.lat,pt.lng],14);
   let st=document.getElementById('nrStreet');if(st){st.focus();st.dispatchEvent(new Event('input'))}
 }
 async function suggestDeliveryStreets(){
@@ -380,9 +370,15 @@ async function toggleDeliveryMap(){
   let el=document.getElementById('deliveryMap');if(!el)return;
   if(!el.classList.contains('hidden')){el.classList.add('hidden');if(DELIVERY_MAP){DELIVERY_MAP.remove();DELIVERY_MAP=null;DELIVERY_MARKER=null}return}
   el.classList.remove('hidden');
-  let center=HOME_POS||DELIVERY_CITY_POS||USER_POS;
-  if(!center){try{center=await currentPosition()}catch(e){center={lat:45.07,lng:7.69}}}
-  DELIVERY_MAP=L.map('deliveryMap').setView([center.lat,center.lng],HOME_POS?17:13);
+  let center=HOME_POS||DELIVERY_CITY_POS;
+  if(!center){
+    let city=document.getElementById('nrCity')?.value.trim()||'';
+    if(city){
+      try{let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(city+', Italia')}&limit=1&lang=it&layer=city&layer=locality&layer=district`);if(fs.length){center=photonFeatureToPoint(fs[0]);DELIVERY_CITY_POS=center}}catch(e){}
+    }
+  }
+  if(!center)center={lat:42.5,lng:12.5};
+  DELIVERY_MAP=L.map('deliveryMap').setView([center.lat,center.lng],HOME_POS?17:DELIVERY_CITY_POS?14:6);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(DELIVERY_MAP);
   if(HOME_POS)updateDeliveryMapMarker(HOME_POS);
   DELIVERY_MAP.on('click',async ev=>{
@@ -432,6 +428,7 @@ function chooseDeliveryCity(i){
   let f=DELIVERY_CITY_RESULTS[i];if(!f)return;let pt=photonFeatureToPoint(f),input=document.getElementById('nrCity');
   if(input)input.value=f.properties?.name||pt.city;DELIVERY_CITY_POS=pt;HOME_POS=null;
   let box=document.getElementById('deliveryCitySuggest');if(box)box.innerHTML='';
+  if(DELIVERY_MAP)DELIVERY_MAP.setView([pt.lat,pt.lng],14);
   let st=document.getElementById('nrStreet');if(st){st.focus();st.dispatchEvent(new Event('input'))}
 }
 async function suggestDeliveryStreets(){
@@ -468,9 +465,15 @@ async function toggleDeliveryMap(){
   let el=document.getElementById('deliveryMap');if(!el)return;
   if(!el.classList.contains('hidden')){el.classList.add('hidden');if(DELIVERY_MAP){DELIVERY_MAP.remove();DELIVERY_MAP=null;DELIVERY_MARKER=null}return}
   el.classList.remove('hidden');
-  let center=HOME_POS||DELIVERY_CITY_POS||USER_POS;
-  if(!center){try{center=await currentPosition()}catch(e){center={lat:45.07,lng:7.69}}}
-  DELIVERY_MAP=L.map('deliveryMap').setView([center.lat,center.lng],HOME_POS?17:13);
+  let center=HOME_POS||DELIVERY_CITY_POS;
+  if(!center){
+    let city=document.getElementById('nrCity')?.value.trim()||'';
+    if(city){
+      try{let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(city+', Italia')}&limit=1&lang=it&layer=city&layer=locality&layer=district`);if(fs.length){center=photonFeatureToPoint(fs[0]);DELIVERY_CITY_POS=center}}catch(e){}
+    }
+  }
+  if(!center)center={lat:42.5,lng:12.5};
+  DELIVERY_MAP=L.map('deliveryMap').setView([center.lat,center.lng],HOME_POS?17:DELIVERY_CITY_POS?14:6);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(DELIVERY_MAP);
   if(HOME_POS)updateDeliveryMapMarker(HOME_POS);
   DELIVERY_MAP.on('click',async ev=>{
