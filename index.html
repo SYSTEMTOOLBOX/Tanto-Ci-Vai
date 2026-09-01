@@ -28,7 +28,7 @@
 const SUPABASE_URL='https://qdsphfmcibrveygkmyex.supabase.co';
 const SUPABASE_KEY='sb_publishable_Ltkh4jRJnihqwzhUCNYPYg_WN47PO13';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SELECTED_PLACE=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null;
+let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SHOP_MAP=null,SHOP_RESULTS=[],SHOP_FILTER='supermarket',SELECTED_PLACE=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null;
 const euro=n=>'€ '+Number(n||0).toFixed(2).replace('.',',');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cleanDeliveryAddress=v=>String(v||'').replace(/,\s*Piazzo\s*,/gi,', ').replace(/\s{2,}/g,' ').trim();
@@ -93,6 +93,7 @@ function chooseRequestCategory(cat){
   REQUEST_CATEGORY=cat;
   SELECTED_PLACE=null;
   if(cat==='farmacia'){openPharmacyFinder();return}
+  if(cat==='spesa'){openShopFinder();return}
   openNewRequest(2)
 }
 function openNewRequest(step=1){
@@ -106,9 +107,9 @@ function openNewRequest(step=1){
   }
   const presets={spesa:['Ritirare una spesa','Es. cosa ritirare, nominativo, dettagli utili'],farmacia:['Ritiro in farmacia','Es. Ordine n. 123, prenotazione a nome Mario, oppure prodotto da ritirare'],ritiro:['Ritirare un pacco','Es. pacco, documento o ordine da ritirare'],altro:['Piccola commissione','Descrivi cosa bisogna fare']};
   let pr=presets[REQUEST_CATEGORY]||presets.altro;
-  let detailLabel=REQUEST_CATEGORY==='farmacia'?'ORDINE / PRENOTAZIONE / COSA RITIRARE':'NOTE PER IL RUNNER / PUNTO DI RITIRO';
+  let detailLabel=REQUEST_CATEGORY==='farmacia'?'ORDINE / PRENOTAZIONE / COSA RITIRARE':REQUEST_CATEGORY==='spesa'?'LISTA SPESA / COSA COMPRARE / NOTE':'NOTE PER IL RUNNER / PUNTO DI RITIRO';
   let fromValue=SELECTED_PLACE?(SELECTED_PLACE.address||SELECTED_PLACE.name):'';
-  let pharmacyNote=REQUEST_CATEGORY==='farmacia'&&SELECTED_PLACE?`<div class="pharmacy-location">💊 <b>${esc(SELECTED_PLACE.name)}</b><br>${esc(SELECTED_PLACE.address||'Farmacia selezionata')} · ${SELECTED_PLACE.distance.toFixed(1)} km dalla zona cercata</div>`:'';
+  let pharmacyNote=SELECTED_PLACE?`<div class="pharmacy-location">${REQUEST_CATEGORY==='farmacia'?'💊':'🏪'} <b>${esc(SELECTED_PLACE.name)}</b><br>${esc(SELECTED_PLACE.address||'Luogo selezionato')}${Number.isFinite(SELECTED_PLACE.distance)?` · ${SELECTED_PLACE.distance.toFixed(1)} km dalla zona cercata`:''}</div>`:'';
   openSheet(`${head('NUOVA RICHIESTA',pr[0],'Il runner vedrà chiaramente persona, ritiro, note e indirizzo finale.')}${pharmacyNote}<div class="kind" style="display:inline-block;margin-top:10px">${REQUEST_CATEGORY.toUpperCase()}</div><div class="field"><label>PER CHI È LA COMMISSIONE?</label><input id="nrPerson" placeholder="Es. Signora Maria"></div><div class="field"><label>TITOLO</label><input id="nrTitle" value="${pr[0]}"></div><div class="field"><label>${detailLabel}</label><textarea id="nrDesc" rows="3" placeholder="${pr[1]}"></textarea></div><div class="field"><label>DOVE RITIRARE</label><input id="nrFrom" value="${esc(fromValue)}" placeholder="Indirizzo completo o luogo" ${SELECTED_PLACE?'readonly':''}></div><div class="delivery-smart"><div class="delivery-smart-title">📍 DOVE VA CONSEGNATO?</div><div class="field autocomplete-wrap"><label>CITTÀ / FRAZIONE</label><input id="nrCity" value="" placeholder="Es. Lauriano" autocomplete="off" oninput="deliveryCityChanged()"><div id="deliveryCitySuggest" class="autocomplete-box"></div></div><div class="field autocomplete-wrap"><label>VIA E NUMERO CIVICO</label><input id="nrStreet" value="" placeholder="Es. Via Anselmina 14/A" autocomplete="off" oninput="deliveryStreetChanged()"><div id="deliveryStreetSuggest" class="autocomplete-box"></div></div><div class="delivery-tools"><button type="button" class="btn outline" onclick="toggleDeliveryMap()">🗺️ Scegli sulla mappa</button><button type="button" class="btn outline" onclick="fillDeliveryWithGps()">📍 Usa GPS</button></div><div id="deliveryMap" class="delivery-map hidden"></div><div id="deliveryPicked" class="delivery-picked hidden"></div></div><div class="field"><label>CONSEGNA ENTRO (MASSIMO)</label><input id="nrDeadline" type="datetime-local" value="${localDateTimeValue(new Date(Date.now()+2*60*60000))}" min="${localDateTimeValue(new Date(Date.now()+15*60000))}"><div class="notice yellow" style="margin-top:7px">⏰ Il runner vedrà questo limite <b>prima di accettare</b> la richiesta.</div></div><div class="field"><label>COMPENSO RIDER</label><select id="nrPay"><option value="3.5">€ 3,50</option><option value="4" selected>€ 4,00</option><option value="5">€ 5,00</option><option value="6">€ 6,00</option></select></div><div id="nrStatus" class="notice green">Il navigatore sarà disponibile al runner dopo che avrà preso la richiesta: posizione runner → ritiro → consegna.</div><div class="backrow"><button class="btn outline" onclick="openNewRequest(1)">← Tipo</button><button class="btn teal" onclick="publishRequest()">Pubblica richiesta</button></div>`)
 }
 function distanceKm(a,b){
@@ -201,6 +202,93 @@ async function searchPharmaciesByText(){
 }
 function selectPharmacy(i){
   SELECTED_PLACE=PHARMACY_RESULTS[i];if(!SELECTED_PLACE)return;openNewRequest(2)
+}
+function shopFilterValues(filter){
+  if(filter==='food')return ['convenience','grocery','bakery','butcher','greengrocer','deli','cheese','pasta','farm'];
+  if(filter==='hardware')return ['hardware','doityourself','paint','garden_centre','trade'];
+  if(filter==='all')return ['supermarket','convenience','grocery','bakery','butcher','greengrocer','deli','cheese','pasta','farm','hardware','doityourself','paint','garden_centre','trade','general','department_store','variety_store'];
+  return ['supermarket','convenience','grocery'];
+}
+function shopTypeLabel(v){
+  const labels={supermarket:'Supermercato',convenience:'Alimentari',grocery:'Alimentari',bakery:'Panetteria',butcher:'Macelleria',greengrocer:'Frutta e verdura',deli:'Gastronomia',cheese:'Formaggi',pasta:'Pasta fresca',farm:'Prodotti agricoli',hardware:'Ferramenta',doityourself:'Brico / fai da te',paint:'Colorificio',garden_centre:'Garden / ferramenta',trade:'Forniture',general:'Negozio',department_store:'Grande magazzino',variety_store:'Emporio'};
+  return labels[v]||'Negozio'
+}
+function shopFilterTitle(filter){return filter==='food'?'Alimentari':filter==='hardware'?'Ferramenta / Brico':filter==='all'?'Tutti i negozi':'Supermercati'}
+function setShopFilter(filter){
+  SHOP_FILTER=filter;
+  ['supermarket','food','hardware','all'].forEach(x=>document.getElementById('shop-filter-'+x)?.classList.toggle('on',x===filter));
+  if(SEARCH_POS)loadShopsAt(SEARCH_POS)
+}
+async function fetchNearbyShops(pos,filter=SHOP_FILTER){
+  const values=shopFilterValues(filter).join('|');
+  const q=`[out:json][timeout:20];(node["shop"~"^(${values})$"](around:15000,${pos.lat},${pos.lng});way["shop"~"^(${values})$"](around:15000,${pos.lat},${pos.lng});relation["shop"~"^(${values})$"](around:15000,${pos.lat},${pos.lng}););out center tags;`;
+  const endpoints=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+  let json=null,lastErr=null;
+  for(const ep of endpoints){try{let r=await fetch(ep+'?data='+encodeURIComponent(q));if(!r.ok)throw new Error('servizio '+r.status);json=await r.json();break}catch(e){lastErr=e}}
+  if(!json)throw lastErr||new Error('Ricerca negozi non disponibile');
+  let seen=new Set(),out=[];
+  for(const el of json.elements||[]){
+    let lat=el.lat??el.center?.lat,lng=el.lon??el.center?.lon;if(lat==null||lng==null)continue;
+    let t=el.tags||{},type=t.shop||'shop',name=t.name||t.brand||shopTypeLabel(type);
+    let key=`${el.type}:${el.id}`;if(seen.has(key))continue;seen.add(key);
+    let street=[t['addr:street'],t['addr:housenumber']].filter(Boolean).join(' '),city=t['addr:city']||t['addr:town']||t['addr:village']||'';
+    let address=t['addr:full']||[street,city].filter(Boolean).join(', ')||name;
+    out.push({osm_type:el.type,osm_id:Number(el.id),name,address,shop:type,lat:Number(lat),lng:Number(lng),distance:distanceKm(pos,{lat:Number(lat),lng:Number(lng)})})
+  }
+  out.sort((a,b)=>a.distance-b.distance||a.name.localeCompare(b.name,'it'));
+  return out.slice(0,40)
+}
+function visibleShopResults(){
+  let q=(document.getElementById('shopNameSearch')?.value||'').trim().toLowerCase();
+  if(!q)return SHOP_RESULTS;
+  return SHOP_RESULTS.filter(p=>(p.name+' '+p.address+' '+shopTypeLabel(p.shop)).toLowerCase().includes(q))
+}
+function renderShopList(){
+  let el=document.getElementById('shopList');if(!el)return;let rows=visibleShopResults();
+  el.innerHTML=rows.length?rows.map(p=>{let i=SHOP_RESULTS.indexOf(p);return `<button type="button" class="place-card" onclick="selectShop(${i})"><div><b>${esc(p.name)}</b><small>${esc(shopTypeLabel(p.shop))} · ${esc(p.address)}</small></div><span class="place-distance">${p.distance.toFixed(1)} km</span></button>`}).join(''):'<div class="notice yellow">Nessun negozio trovato con questo filtro. Prova “Tutti” oppure cambia zona.</div>'
+}
+function initShopMap(pos){
+  if(SHOP_MAP){SHOP_MAP.remove();SHOP_MAP=null}
+  SHOP_MAP=L.map('shopMap').setView([pos.lat,pos.lng],13);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(SHOP_MAP);
+  let bounds=[[pos.lat,pos.lng]];
+  L.circleMarker([pos.lat,pos.lng],{radius:10,weight:4,fillOpacity:.95}).addTo(SHOP_MAP).bindPopup('<b>Zona scelta</b>');
+  SHOP_RESULTS.slice(0,30).forEach((p,i)=>{bounds.push([p.lat,p.lng]);L.marker([p.lat,p.lng]).addTo(SHOP_MAP).bindPopup(`<b>${esc(p.name)}</b><br>${esc(shopTypeLabel(p.shop))}<br>${p.distance.toFixed(1)} km<br><button onclick="selectShop(${i})">Scegli questo negozio</button>`) });
+  if(bounds.length>1)SHOP_MAP.fitBounds(bounds,{padding:[25,25],maxZoom:14});
+  setTimeout(()=>SHOP_MAP?.invalidateSize(),120)
+}
+async function loadShopsAt(pos){
+  SEARCH_POS=await reverseGeocodePoint({lat:pos.lat,lng:pos.lng});
+  let status=document.getElementById('shopStatus');if(status)status.textContent='Cerco '+shopFilterTitle(SHOP_FILTER).toLowerCase()+' nella zona…';
+  try{
+    SHOP_RESULTS=await fetchNearbyShops(SEARCH_POS,SHOP_FILTER);
+    if(status)status.innerHTML=`📍 Zona scelta: <b>${esc(SEARCH_POS.area||SEARCH_POS.label||'posizione indicata')}</b> · ${SHOP_RESULTS.length} risultati entro 15 km`;
+    let mapEl=document.getElementById('shopMap');if(mapEl)mapEl.classList.remove('hidden');
+    initShopMap(SEARCH_POS);renderShopList()
+  }catch(e){if(status)status.textContent='Errore ricerca negozi: '+e.message}
+}
+function openShopFinder(){
+  REQUEST_CATEGORY='spesa';SELECTED_PLACE=null;SEARCH_POS=null;HOME_POS=null;SHOP_RESULTS=[];SHOP_FILTER='supermarket';
+  openSheet(`${head('NEGOZI VICINI','Dove devo fare la spesa?','Scegli la zona: troviamo supermercati, CRAI/Lidl se presenti nei dati della zona, alimentari, ferramenta e altri negozi reali.')}<button class="gpsbtn" onclick="searchShopsByGps()">📍 Usa la posizione GPS di questo telefono</button><div class="place-fallback"><input id="shopTown" placeholder="Oppure scrivi città o frazione · es. Cavagnolo"><button class="btn outline" onclick="searchShopsByText()">Cerca</button></div><div class="delivery-tools" style="margin-top:10px"><button id="shop-filter-supermarket" class="nav-mode on" onclick="setShopFilter('supermarket')">🛒 Supermercati</button><button id="shop-filter-food" class="nav-mode" onclick="setShopFilter('food')">🥖 Alimentari</button><button id="shop-filter-hardware" class="nav-mode" onclick="setShopFilter('hardware')">🔧 Ferramenta</button><button id="shop-filter-all" class="nav-mode" onclick="setShopFilter('all')">🏪 Tutti</button></div><div id="shopStatus" class="pharmacy-location">Raggio di ricerca: 15 km dalla posizione scelta.</div><div id="shopMap" class="place-map hidden"></div><div class="field"><label>CERCA TRA I RISULTATI</label><input id="shopNameSearch" placeholder="Es. CRAI, Lidl, ferramenta…" oninput="renderShopList()"></div><div id="shopList" class="place-list"></div><button class="btn outline full" style="margin-top:10px" onclick="SELECTED_PLACE=null;openNewRequest(2)">Non trovo il negozio · inserisco manualmente</button>`)
+}
+async function searchShopsByGps(){
+  let st=document.getElementById('shopStatus');if(st)st.textContent='Rilevo il GPS…';
+  try{let pos=await currentPosition();await loadShopsAt(pos)}catch(e){if(st)st.textContent='GPS non disponibile o non autorizzato. Puoi sempre scrivere città o frazione.'}
+}
+async function searchShopsByText(){
+  let q=document.getElementById('shopTown')?.value.trim();if(!q)return;
+  let st=document.getElementById('shopStatus');if(st)st.textContent='Cerco '+q+'…';
+  try{let p=await geocode(q);await loadShopsAt(p)}catch(e){if(st)st.textContent='Errore: '+e.message}
+}
+async function selectShop(i){
+  let p=SHOP_RESULTS[i];if(!p)return;
+  let st=document.getElementById('shopStatus');if(st)st.textContent='Recupero indirizzo completo del negozio…';
+  try{
+    let rev=await reverseGeocodePoint({lat:p.lat,lng:p.lng});
+    SELECTED_PLACE={...p,address:rev.label||p.address||p.name};
+  }catch(e){SELECTED_PLACE=p}
+  if(SHOP_MAP){SHOP_MAP.remove();SHOP_MAP=null}
+  openNewRequest(2)
 }
 function routeModeLabel(mode){return mode==='car'?'Auto':mode==='foot'?'A piedi':'Bici'}
 function routeModeIcon(mode){return mode==='car'?'🚗':mode==='foot'?'🚶':'🚲'}
@@ -626,7 +714,7 @@ async function publishRequest(){
   let deadline=new Date(deadlineValue);if(!Number.isFinite(deadline.getTime())||deadline.getTime()<Date.now()+15*60000){nrStatus.textContent='La consegna massima deve essere almeno 15 minuti nel futuro.';return}
   nrStatus.textContent='Verifico ritiro e destinazione…';
   try{
-    let a=(REQUEST_CATEGORY==='farmacia'&&SELECTED_PLACE)?{lat:SELECTED_PLACE.lat,lng:SELECTED_PLACE.lng,label:SELECTED_PLACE.address||SELECTED_PLACE.name}:await geocode(from);
+    let a=((REQUEST_CATEGORY==='farmacia'||REQUEST_CATEGORY==='spesa')&&SELECTED_PLACE)?{lat:SELECTED_PLACE.lat,lng:SELECTED_PLACE.lng,label:SELECTED_PLACE.address||SELECTED_PLACE.name}:await geocode(from);
     let b=(HOME_POS&&HOME_POS.cityText===city&&HOME_POS.streetText===street)?HOME_POS:await geocodeDeliveryAddress(city,street);
     let fullDesc=`Per: ${person}${desc?`\nNote: ${desc}`:''}`;
     let deliveryLabel=canonicalDeliveryLabel(street,city);
