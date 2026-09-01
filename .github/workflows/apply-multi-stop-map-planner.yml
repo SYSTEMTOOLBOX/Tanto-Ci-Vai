@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply_multi_stop_map_planner.py
+      - scripts/.trigger_multi_stop_planner
 
 permissions:
   contents: write
