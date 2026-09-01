@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply_shop_finder_patch.py
+      - .github/workflows/apply-shop-finder-patch.yml
 
 permissions:
   contents: write
