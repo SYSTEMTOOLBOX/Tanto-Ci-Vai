@@ -1,0 +1,85 @@
+name: Favorite routes manager v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/favorite-routes-manager-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace demo routes with user-managed favorites
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          # CSS overrides for editable/deletable route cards.
+          css=r'''
+          /* TRATTE_PREFERITE_V2 */
+          .favroute{display:block!important}
+          .favrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+          .favactions{display:flex;gap:7px;justify-content:flex-end;margin-top:9px;padding-top:8px;border-top:1px solid #e8eef6}
+          .favmini{border:0;border-radius:10px;padding:8px 10px;font-size:8px;font-weight:900;background:#eef4ff;color:var(--blue)}
+          .favmini.danger{background:#fdecec;color:#ad3232}
+          .emptyfav{padding:16px 10px 7px;text-align:center;color:var(--muted);font-size:10px;line-height:1.45}
+          .emptyfav b{display:block;color:var(--ink);font-size:12px;margin-bottom:3px}
+          '''
+          if 'TRATTE_PREFERITE_V2' not in s:
+              s=s.replace('</style>',css+'</style>',1)
+
+          s=s.replace('＋ Aggiungi</button>','＋ Aggiungi tratta</button>',1)
+
+          start=s.index('const DEFAULT_FAVS=[')
+          end=s.index('renderFav();renderFeed();',start)
+          js=r'''
+          const FAV_KEY='tcv_favs_v2';
+          let FAV=(()=>{try{let x=JSON.parse(localStorage.getItem(FAV_KEY)||'null');if(x&&Array.isArray(x.routes))return x}catch(e){}return{today:true,routes:[]}})();
+          function saveFav(){try{localStorage.setItem(FAV_KEY,JSON.stringify(FAV))}catch(e){}}
+          function esc(v){return String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}
+          function renderFav(){
+            if(!document.getElementById('favRoutes'))return;
+            let on=!!FAV.today,light=document.getElementById('favLight'),btn=document.getElementById('favDayBtn');
+            light.classList.toggle('off',!on);btn.classList.toggle('off',!on);btn.textContent=on?'ATTIVO':'MUTO';
+            document.getElementById('favDayTitle').textContent=on?'Oggi sei disponibile':'Oggi sei in pausa';
+            document.getElementById('favDayText').textContent=on?'Le richieste compatibili possono comparire automaticamente.':'Nessuna proposta automatica finché non riattivi il semaforo.';
+            favRoutes.innerHTML=FAV.routes.length?FAV.routes.map(r=>`<div class="favroute ${(!on||!r.on)?'muted':''}"><div class="favrow"><div><div class="lab">${esc((r.label||'Tratta preferita').toUpperCase())}</div><h3>${esc(r.f)} → ${esc(r.to)}</h3><p>${esc(r.days)} • passaggio ${esc(r.time)}</p></div><button class="favtoggle ${r.on?'':'off'}" onclick="toggleFav(${r.id})">${r.on?'ON • VERDE':'OFF'}</button></div><div class="favactions"><button class="favmini" onclick="openFav(${r.id})">✏️ Modifica</button><button class="favmini danger" onclick="deleteFav(${r.id})">🗑 Elimina</button></div></div>`).join(''):`<div class="emptyfav"><b>Nessuna tratta salvata</b>Premi “Aggiungi tratta” e inserisci partenza, destinazione, orario e giorni.</div>`;
+            let active=FAV.routes.filter(r=>r.on),m=document.getElementById('favMatch');
+            if(!FAV.routes.length){m.className='favmatch off';m.innerHTML='⭐ <b>Aggiungi le tue tratte abituali.</b> Quando ce ne sarà una attiva, le nuove richieste potranno essere confrontate automaticamente.'}
+            else if(on&&active.length){m.className='favmatch';m.innerHTML=`🔔 <b>${active.length} tratta${active.length===1?'':'e'} attiva${active.length===1?'':'e'}.</b> Le nuove richieste compatibili con percorso e orario verranno proposte qui e, nella versione reale, tramite notifica push.`}
+            else{m.className='favmatch off';m.innerHTML='🔕 <b>Notifiche di tratta sospese.</b> Le tratte restano salvate e puoi riattivarle con un tocco.'}
+          }
+          function toggleFavDay(){FAV.today=!FAV.today;saveFav();renderFav()}
+          function toggleFav(id){let r=FAV.routes.find(x=>x.id===id);if(!r)return;r.on=!r.on;saveFav();renderFav()}
+          function openFav(id=null){
+            let r=id?FAV.routes.find(x=>x.id===id):null;
+            let title=r?'Modifica la tua tratta':'Aggiungi una tratta';
+            let subtitle=r?'Cambia percorso, orario o giorni.':'Salva uno spostamento che fai spesso.';
+            openSheet(`${head('TRATTA PREFERITA',title,subtitle)}<div class="grid2"><div class="field"><label>PARTENZA</label><input id="ff" value="${esc(r?.f||'')}" placeholder="Es. Casa"></div><div class="field"><label>DESTINAZIONE</label><input id="ft" value="${esc(r?.to||'')}" placeholder="Es. Lavoro"></div></div><div class="grid2"><div class="field"><label>ORARIO ABITUALE</label><input id="ftime" type="time" value="${esc(r?.time||'16:30')}"></div><div class="field"><label>GIORNI</label><select id="fdays"><option ${r?.days==='Lun–Ven'?'selected':''}>Lun–Ven</option><option ${r?.days==='Tutti i giorni'?'selected':''}>Tutti i giorni</option><option ${r?.days==='Lun–Sab'?'selected':''}>Lun–Sab</option><option ${r?.days==='Weekend'?'selected':''}>Weekend</option></select></div></div><div class="field"><label>NOME DELLA TRATTA</label><input id="flabel" value="${esc(r?.label||'')}" placeholder="Es. Rientro dal lavoro"></div><div class="notice green">🚦 Puoi spegnere questa singola tratta con ON/OFF oppure mettere tutta la giornata in MUTO dal semaforo principale.</div><div class="sactions"><button class="btn outline" onclick="closeSheet()">Annulla</button><button class="btn teal" onclick="saveFavForm(${id??'null'})">${r?'Salva modifiche':'Aggiungi tratta'}</button></div>`)
+          }
+          function saveFavForm(id=null){let f=(ff?.value||'').trim(),to=(ft?.value||'').trim();if(!f||!to){alert('Inserisci partenza e destinazione.');return}let data={f,to,time:ftime?.value||'16:30',days:fdays?.value||'Lun–Ven',label:(flabel?.value||'Tratta preferita').trim()||'Tratta preferita'};if(id){let r=FAV.routes.find(x=>x.id===id);if(!r)return;Object.assign(r,data)}else{FAV.routes.push({id:Date.now(),...data,on:true})}saveFav();renderFav();closeSheet()}
+          function deleteFav(id){let r=FAV.routes.find(x=>x.id===id);if(!r)return;if(!confirm(`Eliminare la tratta ${r.f} → ${r.to}?`))return;FAV.routes=FAV.routes.filter(x=>x.id!==id);saveFav();renderFav()}
+          function favoriteMatchAfterPublish(){if(FAV.today&&FAV.routes.some(r=>r.on)){let m=document.getElementById('favMatch');if(m){m.className='favmatch';m.innerHTML='🔔 <b>Nuova richiesta pubblicata.</b> Il motore la confronterebbe subito con tutte le tue tratte preferite attive.'}}}
+          '''
+          s=s[:start]+js+s[end:]
+          p.write_text(s,encoding='utf-8')
+          print('Favorite routes manager v2 installed')
+          PY
+      - name: Commit updated demo
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Make favorite routes user-managed"
+          git push
