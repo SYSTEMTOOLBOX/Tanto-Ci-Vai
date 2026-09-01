@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'scripts/patch_requester_runner_flow.py'
+      - 'scripts/productionize_app.py'
       - '.github/workflows/patch-requester-runner-flow.yml'
   workflow_dispatch:
 
@@ -17,6 +18,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Patch app flow
         run: python3 scripts/patch_requester_runner_flow.py
+      - name: Remove demo labels and enable live GPS
+        run: python3 scripts/productionize_app.py
       - name: Commit app change
         run: |
           git config user.name "github-actions[bot]"
@@ -25,6 +28,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No app changes"
           else
-            git commit -m "Move navigation to runner and support remote requester location"
+            git commit -m "Make app production-facing with live GPS"
             git push
           fi
