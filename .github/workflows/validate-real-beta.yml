@@ -1,0 +1,29 @@
+name: Validate real beta
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - '.github/workflows/validate-real-beta.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract inline JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
+          inline=[b for b in blocks if b.strip()]
+          if not inline:
+              raise SystemExit('No inline JS found')
+          Path('/tmp/app.js').write_text(inline[-1],encoding='utf-8')
+          print('Extracted',len(inline[-1]),'bytes')
+          PY
+      - name: Check JavaScript syntax
+        run: node --check /tmp/app.js
