@@ -1,0 +1,147 @@
+name: Map and clickable matches v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/map-and-clickable-matches-v1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add clickable requests and interactive map
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          if 'MAP_REQUESTS_V1' in s:
+              print('Map/request click patch already present')
+              raise SystemExit(0)
+
+          # Leaflet: lightweight open-source map UI for the beta.
+          leaflet_css='<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynHTir9jMZRF9fQ8bH4+fYyGqM4A=" crossorigin="">\n'
+          if 'leaflet@1.9.4/dist/leaflet.css' not in s:
+              s=s.replace('</head>',leaflet_css+'</head>',1)
+
+          css=r'''
+          /* MAP_REQUESTS_V1 */
+          .reqclick{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}.reqclick:active{transform:scale(.985)}
+          .reqopen{margin-top:9px;font-size:9px;font-weight:950;color:var(--blue);text-align:right}
+          .mapentry{width:100%;border:0;margin-top:11px;padding:15px;background:linear-gradient(135deg,#071a3d,#0b66ff);color:#fff;border-radius:21px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;text-align:left;box-shadow:0 12px 28px rgba(11,102,255,.18)}
+          .mapentry .mi{width:45px;height:45px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.14);font-size:22px}.mapentry b{font-size:14px}.mapentry p{font-size:9px;line-height:1.4;opacity:.8;margin:3px 0 0}.mapentry .go{font-size:11px;font-weight:950}
+          #reqMap{height:54vh;min-height:350px;border-radius:19px;border:1px solid var(--line);overflow:hidden;margin:12px 0}
+          .maptools{display:flex;gap:7px;flex-wrap:wrap}.maptool{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 11px;font-size:9px;font-weight:950;color:var(--ink)}.maptool.primarymap{background:#eaf2ff;color:var(--blue);border-color:#cfe0ff}
+          .maplegend{display:flex;gap:7px;flex-wrap:wrap;font-size:8px;color:var(--muted);margin:7px 0}.maplegend span{padding:5px 7px;background:#f2f6fb;border-radius:999px}
+          .leaflet-popup-content{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;margin:11px 13px}.mappop b{font-size:12px}.mappop p{font-size:9px;color:#6c7891;margin:4px 0 8px}.mappop button{border:0;border-radius:10px;padding:8px 10px;background:#0b66ff;color:#fff;font-size:9px;font-weight:900}
+          .navgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}
+          '''
+          s=s.replace('</style>',css+'</style>',1)
+
+          # Home map entry, immediately after the two main actions.
+          home_needle='</section><div class="sect"><h2>Le tue tratte preferite</h2>'
+          map_entry='''</section><button class="mapentry" onclick="openReqMap()"><span class="mi">🗺️</span><span><b>Mappa richieste</b><p>Guarda dove sono le richieste, cerca nella zona e scopri cosa passa vicino alla tua strada.</p></span><span class="go">Apri →</span></button><div class="sect"><h2>Le tue tratte preferite</h2>'''
+          if home_needle in s:
+              s=s.replace(home_needle,map_entry,1)
+          else:
+              print('Warning: home map insertion point not found')
+
+          # Make demo examples geographically clearer.
+          s=s.replace("f:'Farmacia • Piazza Risorgimento',to:'Frazione collinare'","f:'Farmacia • Verolengo',to:'Lauriano'",1)
+          s=s.replace("f:'Punto ritiro • Via Torino',to:'Centro paese'","f:'Punto ritiro • Saluggia',to:'Lauriano'",1)
+
+          # Every request in the route-match list must be individually clickable.
+          old="""${S.reqs.slice(0,3).map(r=>`<div class=\"req\" style=\"margin-bottom:8px\"><div class=\"reqhead\"><span class=\"kind\">${r.k}</span><span class=\"dist\">${r.km}</span></div><h3>${r.t}</h3><div class=\"meta\"><span class=\"pill\">${r.w}</span><span class=\"pill money\">${euro(r.r)}</span></div></div>`).join('')}"""
+          new="""${S.reqs.slice(0,3).map(r=>`<div class=\"req reqclick\" style=\"margin-bottom:8px\" onclick=\"detail(${r.id})\"><div class=\"reqhead\"><span class=\"kind\">${r.k}</span><span class=\"dist\">${r.km}</span></div><h3>${r.t}</h3><div class=\"meta\"><span class=\"pill\">${r.w}</span><span class=\"pill money\">${euro(r.r)}</span></div><div class=\"reqopen\">Apri e scegli questa →</div></div>`).join('')}"""
+          if old in s:
+              s=s.replace(old,new,1)
+          else:
+              print('Warning: match card exact block not found')
+          s=s.replace('Accetta le 3 commissioni','Accetta tutte e 3',1)
+
+          # Add map shortcut inside the route-match sheet.
+          route_notice='<div class="notice">*Indicatore dimostrativo: nella versione reale si confronterà il tragitto condiviso con le tratte dedicate evitate.</div>'
+          route_notice_new='<button class="btn outline full" style="margin-bottom:8px" onclick="openReqMap()">🗺️ Vedi queste richieste sulla mappa</button>'+route_notice
+          if route_notice in s:
+              s=s.replace(route_notice,route_notice_new,1)
+
+          # Individual detail: navigation button + individual acceptance.
+          detail_old='<div class="notice green">🌿 Compatibile con spostamenti nella tua zona.</div><button class="btn teal full" style="margin-top:11px" onclick="accept(${r.id})">Sì, tanto ci vado</button>`)}'
+          detail_new='<div class="notice green">🌿 Compatibile con spostamenti nella tua zona.</div><div class="navgrid"><button class="btn outline full" onclick="navTo(${r.id})">🧭 Naviga al ritiro</button><button class="btn teal full" onclick="accept(${r.id})">Sì, prendo questa</button></div>`)}'
+          if detail_old in s:
+              s=s.replace(detail_old,detail_new,1)
+          else:
+              print('Warning: detail action block not found')
+
+          # Load Leaflet before our existing inline application script.
+          first_script='<script>\nconst S='
+          leaflet_js='<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>\n<script>\nconst S='
+          if first_script in s and 'leaflet@1.9.4/dist/leaflet.js' not in s:
+              s=s.replace(first_script,leaflet_js,1)
+
+          js=r'''
+          const MAP_PTS={
+            1:{lat:45.1592,lng:7.9927,place:'Lauriano'},
+            2:{lat:45.1910,lng:7.9693,place:'Verolengo'},
+            3:{lat:45.2355,lng:8.0117,place:'Saluggia'},
+            4:{lat:45.1660,lng:7.9850,place:'Lauriano'}
+          };
+          let reqMapInstance=null,userMapMarker=null;
+          function openReqMap(){
+            openSheet(`${head('MAPPA RICHIESTE','Cosa c’è lungo la tua strada?','Tocca un segnaposto per aprire la richiesta. La mappa demo usa dati OpenStreetMap.')}
+              <div class="maptools"><button class="maptool primarymap" onclick="locateMe()">◎ La mia posizione</button><button class="maptool" onclick="fitAllRequests()">📦 Tutte le richieste</button><button class="maptool" onclick="focusDemoCorridor()">⇄ Zona percorso</button></div>
+              <div class="maplegend"><span>📦 Ritiro</span><span>🛒 Spesa</span><span>💊 Farmacia</span><span>📍 GPS con consenso</span></div>
+              <div id="reqMap"></div>
+              <div class="notice green">💡 Nel motore reale il percorso dell’utente verrà confrontato con i punti di ritiro/consegna e con la finestra oraria. Se una richiesta è abbastanza vicina alla strada che stai già facendo, l’app potrà proportela.</div>`);
+            setTimeout(initReqMap,120)
+          }
+          function initReqMap(){
+            if(typeof L==='undefined'||!document.getElementById('reqMap'))return;
+            reqMapInstance=L.map('reqMap',{zoomControl:true}).setView([45.19,7.99],12);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(reqMapInstance);
+            S.reqs.forEach((r,i)=>{
+              let q=MAP_PTS[r.id]||{lat:45.1592+(i*.008),lng:7.9927+(i*.006),place:'Zona demo'};
+              let marker=L.marker([q.lat,q.lng]).addTo(reqMapInstance);
+              marker.bindPopup(`<div class="mappop"><b>${escMap(r.t)}</b><p>${escMap(q.place)} • ${escMap(r.w)} • ${euro(r.r)}</p><button onclick="detail(${r.id})">Apri richiesta</button></div>`)
+            });
+            // Corridoio visuale dimostrativo, non routing stradale definitivo.
+            L.polyline([[45.2355,8.0117],[45.1910,7.9693],[45.1592,7.9927]],{weight:5,opacity:.55,dashArray:'8,8'}).addTo(reqMapInstance);
+          }
+          function escMap(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
+          function fitAllRequests(){if(!reqMapInstance)return;let pts=S.reqs.map((r,i)=>{let q=MAP_PTS[r.id]||{lat:45.1592+(i*.008),lng:7.9927+(i*.006)};return[q.lat,q.lng]});if(pts.length)reqMapInstance.fitBounds(pts,{padding:[30,30]})}
+          function focusDemoCorridor(){if(reqMapInstance)reqMapInstance.fitBounds([[45.2355,8.0117],[45.1592,7.9927]],{padding:[28,28]})}
+          function locateMe(){
+            if(!navigator.geolocation){alert('GPS non disponibile su questo dispositivo.');return}
+            navigator.geolocation.getCurrentPosition(pos=>{
+              if(!reqMapInstance)return;let ll=[pos.coords.latitude,pos.coords.longitude];
+              if(userMapMarker)reqMapInstance.removeLayer(userMapMarker);
+              userMapMarker=L.circleMarker(ll,{radius:9,weight:4,fillOpacity:.9}).addTo(reqMapInstance).bindPopup('La tua posizione').openPopup();reqMapInstance.setView(ll,14)
+            },()=>alert('Per mostrarti sulla mappa devi consentire la posizione al browser.'),{enableHighAccuracy:true,timeout:10000,maximumAge:30000})
+          }
+          function navTo(id){let r=S.reqs.find(x=>x.id===id);if(!r)return;let destination=encodeURIComponent(r.f);window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`,'_blank')}
+          '''
+          marker='renderFav();renderFeed();'
+          if marker in s:
+              s=s.replace(marker,js+marker,1)
+          else:
+              raise SystemExit('Final render marker not found')
+
+          p.write_text(s,encoding='utf-8')
+          print('Map + clickable requests added')
+          PY
+      - name: Commit updated demo
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add interactive request map and individual match actions"
+          git push
