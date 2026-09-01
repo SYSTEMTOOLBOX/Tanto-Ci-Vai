@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b66ff">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Tanto ci vai?</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -85,11 +88,12 @@ function openNewRequest(step=1){
       ['altro','🤝','Altro','Una piccola commissione locale']
     ].map(x=>`<button class="choice" onclick="chooseRequestCategory('${x[0]}')"><span class="em">${x[1]}</span><b>${x[2]}</b><small>${x[3]}</small></button>`).join('')}</div>`);return
   }
-  const presets={spesa:['Ritirare una spesa','Es. cosa ritirare, nominativo, dettagli utili'],farmacia:['Ritiro in farmacia','Es. ordine già pronto, nominativo al banco, numero ordine'],ritiro:['Ritirare un pacco','Es. pacco, documento o ordine da ritirare'],altro:['Piccola commissione','Descrivi cosa bisogna fare']};
+  const presets={spesa:['Ritirare una spesa','Es. cosa ritirare, nominativo, dettagli utili'],farmacia:['Ritiro in farmacia','Es. Ordine n. 123, prenotazione a nome Mario, oppure prodotto da ritirare'],ritiro:['Ritirare un pacco','Es. pacco, documento o ordine da ritirare'],altro:['Piccola commissione','Descrivi cosa bisogna fare']};
   let pr=presets[REQUEST_CATEGORY]||presets.altro;
+  let detailLabel=REQUEST_CATEGORY==='farmacia'?'ORDINE / PRENOTAZIONE / COSA RITIRARE':'NOTE PER IL RUNNER / PUNTO DI RITIRO';
   let fromValue=SELECTED_PLACE?(SELECTED_PLACE.address||SELECTED_PLACE.name):'';
   let pharmacyNote=REQUEST_CATEGORY==='farmacia'&&SELECTED_PLACE?`<div class="pharmacy-location">💊 <b>${esc(SELECTED_PLACE.name)}</b><br>${esc(SELECTED_PLACE.address||'Farmacia selezionata')} · ${SELECTED_PLACE.distance.toFixed(1)} km dalla zona cercata</div>`:'';
-  openSheet(`${head('NUOVA RICHIESTA',pr[0],'Il runner vedrà chiaramente persona, ritiro, note e indirizzo finale.')}${pharmacyNote}<div class="kind" style="display:inline-block;margin-top:10px">${REQUEST_CATEGORY.toUpperCase()}</div><div class="field"><label>PER CHI È LA COMMISSIONE?</label><input id="nrPerson" placeholder="Es. Signora Maria"></div><div class="field"><label>TITOLO</label><input id="nrTitle" value="${pr[0]}"></div><div class="field"><label>NOTE PER IL RUNNER / PUNTO DI RITIRO</label><textarea id="nrDesc" rows="3" placeholder="${pr[1]}"></textarea></div><div class="field"><label>DOVE RITIRARE</label><input id="nrFrom" value="${esc(fromValue)}" placeholder="Indirizzo completo o luogo" ${SELECTED_PLACE?'readonly':''}></div><div class="delivery-smart"><div class="delivery-smart-title">📍 DOVE VA CONSEGNATO?</div><div class="field autocomplete-wrap"><label>CITTÀ / FRAZIONE</label><input id="nrCity" value="" placeholder="Es. Lauriano" autocomplete="off" oninput="deliveryCityChanged()"><div id="deliveryCitySuggest" class="autocomplete-box"></div></div><div class="field autocomplete-wrap"><label>VIA E NUMERO CIVICO</label><input id="nrStreet" value="" placeholder="Es. Via Anselmina 14/A" autocomplete="off" oninput="deliveryStreetChanged()"><div id="deliveryStreetSuggest" class="autocomplete-box"></div></div><div class="delivery-tools"><button type="button" class="btn outline" onclick="toggleDeliveryMap()">🗺️ Scegli sulla mappa</button><button type="button" class="btn outline" onclick="fillDeliveryWithGps()">📍 Usa GPS</button></div><div id="deliveryMap" class="delivery-map hidden"></div><div id="deliveryPicked" class="delivery-picked hidden"></div></div><div class="field"><label>COMPENSO RIDER</label><select id="nrPay"><option value="3.5">€ 3,50</option><option value="4" selected>€ 4,00</option><option value="5">€ 5,00</option><option value="6">€ 6,00</option></select></div><div id="nrStatus" class="notice green">Il navigatore sarà disponibile al runner dopo che avrà preso la richiesta: posizione runner → ritiro → consegna.</div><div class="backrow"><button class="btn outline" onclick="openNewRequest(1)">← Tipo</button><button class="btn teal" onclick="publishRequest()">Pubblica richiesta</button></div>`)
+  openSheet(`${head('NUOVA RICHIESTA',pr[0],'Il runner vedrà chiaramente persona, ritiro, note e indirizzo finale.')}${pharmacyNote}<div class="kind" style="display:inline-block;margin-top:10px">${REQUEST_CATEGORY.toUpperCase()}</div><div class="field"><label>PER CHI È LA COMMISSIONE?</label><input id="nrPerson" placeholder="Es. Signora Maria"></div><div class="field"><label>TITOLO</label><input id="nrTitle" value="${pr[0]}"></div><div class="field"><label>${detailLabel}</label><textarea id="nrDesc" rows="3" placeholder="${pr[1]}"></textarea></div><div class="field"><label>DOVE RITIRARE</label><input id="nrFrom" value="${esc(fromValue)}" placeholder="Indirizzo completo o luogo" ${SELECTED_PLACE?'readonly':''}></div><div class="delivery-smart"><div class="delivery-smart-title">📍 DOVE VA CONSEGNATO?</div><div class="field autocomplete-wrap"><label>CITTÀ / FRAZIONE</label><input id="nrCity" value="" placeholder="Es. Lauriano" autocomplete="off" oninput="deliveryCityChanged()"><div id="deliveryCitySuggest" class="autocomplete-box"></div></div><div class="field autocomplete-wrap"><label>VIA E NUMERO CIVICO</label><input id="nrStreet" value="" placeholder="Es. Via Anselmina 14/A" autocomplete="off" oninput="deliveryStreetChanged()"><div id="deliveryStreetSuggest" class="autocomplete-box"></div></div><div class="delivery-tools"><button type="button" class="btn outline" onclick="toggleDeliveryMap()">🗺️ Scegli sulla mappa</button><button type="button" class="btn outline" onclick="fillDeliveryWithGps()">📍 Usa GPS</button></div><div id="deliveryMap" class="delivery-map hidden"></div><div id="deliveryPicked" class="delivery-picked hidden"></div></div><div class="field"><label>COMPENSO RIDER</label><select id="nrPay"><option value="3.5">€ 3,50</option><option value="4" selected>€ 4,00</option><option value="5">€ 5,00</option><option value="6">€ 6,00</option></select></div><div id="nrStatus" class="notice green">Il navigatore sarà disponibile al runner dopo che avrà preso la richiesta: posizione runner → ritiro → consegna.</div><div class="backrow"><button class="btn outline" onclick="openNewRequest(1)">← Tipo</button><button class="btn teal" onclick="publishRequest()">Pubblica richiesta</button></div>`)
 }
 function distanceKm(a,b){
   const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
@@ -303,6 +307,94 @@ function openRunnerExternalNavigation(){
   let mode=NAV_MODE==='car'?'driving':NAV_MODE==='foot'?'walking':'bicycling';
   let url=`https://www.google.com/maps/dir/?api=1&destination=${r.consegna_lat},${r.consegna_lng}&waypoints=${r.ritiro_lat},${r.ritiro_lng}&travelmode=${mode}`;
   window.open(url,'_blank','noopener')
+}
+function photonFeatureToPoint(f){
+  let p=f?.properties||{},c=f?.geometry?.coordinates||[];
+  let city=p.city||p.locality||p.district||p.county||p.name||'';
+  let street=[p.street||((p.osm_value==='street'||p.osm_value==='residential')?p.name:''),p.housenumber].filter(Boolean).join(' ');
+  let label=[street,city,p.postcode,p.state].filter(Boolean).join(', ');
+  return {lat:+c[1],lng:+c[0],city,street,label:label||p.name||'',raw:p}
+}
+function deliveryCityChanged(){
+  DELIVERY_CITY_POS=null;HOME_POS=null;
+  clearTimeout(DELIVERY_TIMER);DELIVERY_TIMER=setTimeout(suggestDeliveryCities,260)
+}
+function deliveryStreetChanged(){
+  HOME_POS=null;
+  clearTimeout(DELIVERY_TIMER);DELIVERY_TIMER=setTimeout(suggestDeliveryStreets,260)
+}
+async function photonSearch(url){
+  let r=await fetch(url);if(!r.ok)throw new Error('Ricerca indirizzo non disponibile');
+  let j=await r.json();return (j.features||[]).filter(f=>String(f.properties?.countrycode||'').toUpperCase()==='IT')
+}
+function citySuggestionLabel(f){
+  let p=f.properties||{};return [p.name,p.county,p.state].filter(Boolean).join(' · ')
+}
+async function suggestDeliveryCities(){
+  let input=document.getElementById('nrCity'),box=document.getElementById('deliveryCitySuggest');if(!input||!box)return;
+  let q=input.value.trim();if(q.length<2){box.innerHTML='';return}
+  try{
+    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=it&layer=city&layer=locality&layer=district`;
+    let fs=await photonSearch(url),seen=new Set();
+    DELIVERY_CITY_RESULTS=fs.filter(f=>{let k=citySuggestionLabel(f).toLowerCase();if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,6);
+    box.innerHTML=DELIVERY_CITY_RESULTS.map((f,i)=>`<button type="button" class="autocomplete-item" onclick="chooseDeliveryCity(${i})"><b>${esc(f.properties?.name||'Località')}</b><small>${esc([f.properties?.county,f.properties?.state].filter(Boolean).join(' · '))}</small></button>`).join('')
+  }catch(e){box.innerHTML=''}
+}
+function chooseDeliveryCity(i){
+  let f=DELIVERY_CITY_RESULTS[i];if(!f)return;let pt=photonFeatureToPoint(f),input=document.getElementById('nrCity');
+  if(input)input.value=f.properties?.name||pt.city;DELIVERY_CITY_POS=pt;HOME_POS=null;
+  let box=document.getElementById('deliveryCitySuggest');if(box)box.innerHTML='';
+  let st=document.getElementById('nrStreet');if(st){st.focus();st.dispatchEvent(new Event('input'))}
+}
+async function suggestDeliveryStreets(){
+  let city=document.getElementById('nrCity')?.value.trim()||'',input=document.getElementById('nrStreet'),box=document.getElementById('deliveryStreetSuggest');if(!input||!box)return;
+  let street=input.value.trim();if(city.length<2||street.length<2){box.innerHTML='';return}
+  try{
+    let bias=DELIVERY_CITY_POS?`&lat=${DELIVERY_CITY_POS.lat}&lon=${DELIVERY_CITY_POS.lng}`:'';
+    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(street+', '+city)}&limit=10&lang=it&layer=street&layer=house${bias}`;
+    let fs=await photonSearch(url),seen=new Set();
+    DELIVERY_STREET_RESULTS=fs.filter(f=>{let pt=photonFeatureToPoint(f),name=pt.street||f.properties?.name||'';let k=(name+'|'+pt.city).toLowerCase();if(!name||seen.has(k))return false;seen.add(k);return true}).slice(0,7);
+    box.innerHTML=DELIVERY_STREET_RESULTS.map((f,i)=>{let pt=photonFeatureToPoint(f),name=pt.street||f.properties?.name||'Indirizzo';return `<button type="button" class="autocomplete-item" onclick="chooseDeliveryStreet(${i})"><b>${esc(name)}</b><small>${esc([pt.city,f.properties?.postcode,f.properties?.state].filter(Boolean).join(' · '))}</small></button>`}).join('')
+  }catch(e){box.innerHTML=''}
+}
+function chooseDeliveryStreet(i){
+  let f=DELIVERY_STREET_RESULTS[i];if(!f)return;let pt=photonFeatureToPoint(f);
+  let st=document.getElementById('nrStreet'),city=document.getElementById('nrCity');if(st)st.value=pt.street||f.properties?.name||'';if(city&&pt.city)city.value=pt.city;
+  HOME_POS={lat:pt.lat,lng:pt.lng,label:pt.label,city:pt.city,street:pt.street,cityText:(city?.value||''),streetText:(st?.value||'')};
+  let box=document.getElementById('deliveryStreetSuggest');if(box)box.innerHTML='';showPickedDelivery(HOME_POS);updateDeliveryMapMarker(HOME_POS)
+}
+function showPickedDelivery(pt){
+  let el=document.getElementById('deliveryPicked');if(!el||!pt)return;el.classList.remove('hidden');el.innerHTML=`✓ Destinazione impostata<br><b>${esc(pt.label||[pt.street,pt.city].filter(Boolean).join(', '))}</b>`
+}
+async function reverseDeliveryPoint(pt){
+  let r=await fetch(`https://photon.komoot.io/reverse?lat=${pt.lat}&lon=${pt.lng}&lang=it`);if(!r.ok)throw new Error('Indirizzo non trovato sulla mappa');
+  let j=await r.json(),f=(j.features||[])[0];if(!f)return {...pt,label:`${pt.lat.toFixed(6)}, ${pt.lng.toFixed(6)}`};
+  let x=photonFeatureToPoint(f);return {...x,lat:pt.lat,lng:pt.lng}
+}
+function updateDeliveryMapMarker(pt){
+  if(!DELIVERY_MAP||!pt)return;
+  if(!DELIVERY_MARKER)DELIVERY_MARKER=L.marker([pt.lat,pt.lng]).addTo(DELIVERY_MAP);else DELIVERY_MARKER.setLatLng([pt.lat,pt.lng]);
+  DELIVERY_MAP.panTo([pt.lat,pt.lng])
+}
+async function toggleDeliveryMap(){
+  let el=document.getElementById('deliveryMap');if(!el)return;
+  if(!el.classList.contains('hidden')){el.classList.add('hidden');if(DELIVERY_MAP){DELIVERY_MAP.remove();DELIVERY_MAP=null;DELIVERY_MARKER=null}return}
+  el.classList.remove('hidden');
+  let center=HOME_POS||DELIVERY_CITY_POS||USER_POS;
+  if(!center){try{center=await currentPosition()}catch(e){center={lat:45.07,lng:7.69}}}
+  DELIVERY_MAP=L.map('deliveryMap').setView([center.lat,center.lng],HOME_POS?17:13);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(DELIVERY_MAP);
+  if(HOME_POS)updateDeliveryMapMarker(HOME_POS);
+  DELIVERY_MAP.on('click',async ev=>{
+    let status=document.getElementById('nrStatus');if(status)status.textContent='Leggo il punto scelto sulla mappa…';
+    try{
+      let pt=await reverseDeliveryPoint({lat:ev.latlng.lat,lng:ev.latlng.lng});let city=document.getElementById('nrCity'),street=document.getElementById('nrStreet');
+      if(city)city.value=pt.city||city.value;if(street)street.value=pt.street||street.value;
+      HOME_POS={...pt,cityText:city?.value||'',streetText:street?.value||''};updateDeliveryMapMarker(HOME_POS);showPickedDelivery(HOME_POS);
+      if(status)status.textContent='✓ Punto di consegna scelto sulla mappa.'
+    }catch(e){if(status)status.textContent='Errore mappa: '+e.message}
+  });
+  setTimeout(()=>DELIVERY_MAP?.invalidateSize(),100)
 }
 function photonFeatureToPoint(f){
   let p=f?.properties||{},c=f?.geometry?.coordinates||[];
