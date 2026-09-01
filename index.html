@@ -31,6 +31,7 @@ const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSe
 let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SELECTED_PLACE=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null;
 const euro=n=>'€ '+Number(n||0).toFixed(2).replace('.',',');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cleanDeliveryAddress=v=>String(v||'').replace(/,\s*Piazzo\s*,/gi,', ').replace(/\s{2,}/g,' ').trim();
 function setAuthMode(m){AUTH_MODE=m;loginTab.classList.toggle('on',m==='login');signupTab.classList.toggle('on',m==='signup');signupFields.classList.toggle('hidden',m!=='signup');authBtn.textContent=m==='login'?'Accedi':'Crea profilo';authStatus.textContent=m==='login'?'Accedi con email e password.':'Il nome e il telefono verranno salvati nel tuo profilo.'}
 async function submitAuth(){let email=authEmail.value.trim(),password=authPassword.value;if(!email||password.length<6){authStatus.textContent='Inserisci una email valida e una password di almeno 6 caratteri.';return}authBtn.disabled=true;try{if(AUTH_MODE==='signup'){let nome=authName.value.trim(),telefono=authPhone.value.trim();if(!nome){authStatus.textContent='Inserisci il nome.';return}let {data,error}=await db.auth.signUp({email,password,options:{data:{nome,telefono},emailRedirectTo:location.origin+location.pathname}});if(error)throw error;if(!data.session){authStatus.textContent='Registrazione creata. Controlla la tua email e conferma il link, poi torna qui e accedi.';return}await afterLogin(data.session)}else{let {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;await afterLogin(data.session)}}catch(e){authStatus.textContent='Errore: '+e.message}finally{authBtn.disabled=false}}
 async function afterLogin(session){SESSION=session;authView.classList.add('hidden');appView.classList.remove('hidden');bottomNav.classList.remove('hidden');await ensureProfile();await loadRequests();subscribeRealtime();renderAll()}
@@ -43,7 +44,7 @@ function renderFeed(){let uid=SESSION.user.id,arr=REQUESTS.filter(r=>r.stato==='
 function card(r){
   let mine=r.cliente_id===SESSION.user.id,assigned=r.rider_id===SESSION.user.id;
   let notes=esc(r.descrizione||'').replace(/\n/g,'<br>');
-  return `<article class="req"><div class="reqhead"><span class="kind ${mine?'mine':''}">${mine?'MIA RICHIESTA':assigned?'MISSIONE':'DISPONIBILE'}</span><span class="dist">${esc(r.stato)}</span></div><h3>${esc(r.titolo)}</h3>${notes?`<p>${notes}</p>`:''}<div class="route"><div><small>RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>CONSEGNA</small><br>${esc(r.consegna_indirizzo)}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span><span class="pill">fee app ${euro(r.commissione_app)}</span></div>${!mine&&r.stato==='disponibile'?`<div class="rowbtn"><button class="btn outline" onclick="openRequestDetails('${r.id}')">Apri richiesta</button><button class="btn teal" onclick="acceptRequest('${r.id}')">Tanto ci vai?</button></div>`:''}${assigned?missionButtons(r):''}${mine&&r.stato==='disponibile'?`<button class="btn danger full" style="margin-top:10px" onclick="setStatus('${r.id}','annullata')">Annulla richiesta</button>`:''}</article>`
+  return `<article class="req"><div class="reqhead"><span class="kind ${mine?'mine':''}">${mine?'MIA RICHIESTA':assigned?'MISSIONE':'DISPONIBILE'}</span><span class="dist">${esc(r.stato)}</span></div><h3>${esc(r.titolo)}</h3>${notes?`<p>${notes}</p>`:''}<div class="route"><div><small>RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>CONSEGNA</small><br>${esc(cleanDeliveryAddress(r.consegna_indirizzo))}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span><span class="pill">fee app ${euro(r.commissione_app)}</span></div>${!mine&&r.stato==='disponibile'?`<div class="rowbtn"><button class="btn outline" onclick="openRequestDetails('${r.id}')">Apri richiesta</button><button class="btn teal" onclick="acceptRequest('${r.id}')">Tanto ci vai?</button></div>`:''}${assigned?missionButtons(r):''}${mine&&r.stato==='disponibile'?`<button class="btn danger full" style="margin-top:10px" onclick="setStatus('${r.id}','annullata')">Annulla richiesta</button>`:''}</article>`
 }
 function missionButtons(r){
   let next=r.stato==='accettata'?'ritirata':r.stato==='ritirata'?'in_consegna':r.stato==='in_consegna'?'consegnata':null;
@@ -56,7 +57,7 @@ function openRequestDetails(id){
   let mine=r.cliente_id===SESSION.user.id,assigned=r.rider_id===SESSION.user.id;
   let notes=esc(r.descrizione||'').replace(/\n/g,'<br>');
   let action=!mine&&r.stato==='disponibile'?`<button class="btn teal full" style="margin-top:10px" onclick="acceptRequest('${r.id}')">Tanto ci vai? · Prendi richiesta</button>`:assigned?`<button class="btn primary full" style="margin-top:10px" onclick="openRunnerNavigation('${r.id}')">🧭 Apri navigatore runner</button>`:'';
-  openSheet(`${head('DETTAGLI RICHIESTA',r.titolo,'Prima di accettare vedi ritiro, consegna e tutte le note.')}${notes?`<div class="notice" style="margin-top:10px"><b>NOTE</b><br>${notes}</div>`:''}<div class="route"><div><small>1 · RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>2 · CONSEGNA</small><br>${esc(r.consegna_indirizzo)}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span><span class="pill">${esc(r.categoria||'commissione')}</span></div>${action}`)
+  openSheet(`${head('DETTAGLI RICHIESTA',r.titolo,'Prima di accettare vedi ritiro, consegna e tutte le note.')}${notes?`<div class="notice" style="margin-top:10px"><b>NOTE</b><br>${notes}</div>`:''}<div class="route"><div><small>1 · RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>2 · CONSEGNA</small><br>${esc(cleanDeliveryAddress(r.consegna_indirizzo))}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span><span class="pill">${esc(r.categoria||'commissione')}</span></div>${action}`)
 }
 function openSheet(html){sc.innerHTML='<div class="handle"></div>'+html;ov.classList.remove('hidden');sheet.classList.remove('hidden');document.body.style.overflow='hidden'}
 function closeSheet(){ov.classList.add('hidden');sheet.classList.add('hidden');document.body.style.overflow=''}
@@ -487,6 +488,94 @@ async function toggleDeliveryMap(){
   });
   setTimeout(()=>DELIVERY_MAP?.invalidateSize(),100)
 }
+let DELIVERY_QUERY_ID=0;
+const canonicalDeliveryLabel=(street,city)=>cleanDeliveryAddress([String(street||'').trim(),String(city||'').trim()].filter(Boolean).join(', '));
+function deliverySearchMessage(box,text){if(box)box.innerHTML=`<div class="notice" style="padding:8px 10px">${esc(text)}</div>`}
+async function nominatimDeliverySearch(q,limit=8){
+  let url=`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=it&addressdetails=1&limit=${limit}&q=${encodeURIComponent(q)}`;
+  let r=await fetch(url,{headers:{'Accept-Language':'it'}});if(!r.ok)throw new Error('Ricerca indirizzo non disponibile');return r.json()
+}
+function nominatimDeliveryPoint(x){
+  let a=x?.address||{},city=a.city||a.town||a.municipality||a.village||a.hamlet||'',street=[a.road||a.pedestrian||a.path||((x?.addresstype==='road')?x.name:''),a.house_number].filter(Boolean).join(' ');
+  return {lat:+x.lat,lng:+x.lon,city,street,label:x.display_name||'',raw:a}
+}
+function deliveryCityChanged(){
+  DELIVERY_CITY_POS=null;HOME_POS=null;let box=document.getElementById('deliveryCitySuggest');
+  clearTimeout(DELIVERY_TIMER);let q=document.getElementById('nrCity')?.value.trim()||'';if(q.length<2){if(box)box.innerHTML='';return}
+  deliverySearchMessage(box,'Cerco città e frazioni…');DELIVERY_TIMER=setTimeout(suggestDeliveryCities,380)
+}
+function deliveryStreetChanged(){
+  HOME_POS=null;let box=document.getElementById('deliveryStreetSuggest');
+  clearTimeout(DELIVERY_TIMER);let q=document.getElementById('nrStreet')?.value.trim()||'';if(q.length<2){if(box)box.innerHTML='';return}
+  deliverySearchMessage(box,'Cerco le vie…');DELIVERY_TIMER=setTimeout(suggestDeliveryStreets,380)
+}
+async function suggestDeliveryCities(){
+  let input=document.getElementById('nrCity'),box=document.getElementById('deliveryCitySuggest');if(!input||!box)return;
+  let q=input.value.trim(),queryId=++DELIVERY_QUERY_ID;if(q.length<2){box.innerHTML='';return}
+  try{
+    let points=[];
+    try{
+      let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=10&layer=city&layer=locality&layer=district`);
+      points=fs.map(f=>{let pt=photonFeatureToPoint(f),p=f.properties||{};return {...pt,name:p.name||pt.city,sub:[p.county,p.state].filter(Boolean).join(' · ')}})
+    }catch(e){}
+    if(!points.length){let ns=await nominatimDeliverySearch(q,10);points=ns.map(x=>{let pt=nominatimDeliveryPoint(x),a=x.address||{};return {...pt,name:x.name||pt.city,sub:[a.county,a.state].filter(Boolean).join(' · ')}})}
+    if(queryId!==DELIVERY_QUERY_ID||input.value.trim()!==q)return;
+    let seen=new Set();DELIVERY_CITY_RESULTS=points.filter(p=>{let k=(p.name+'|'+p.sub).toLowerCase();if(!p.name||seen.has(k))return false;seen.add(k);return true}).slice(0,7);
+    box.innerHTML=DELIVERY_CITY_RESULTS.length?DELIVERY_CITY_RESULTS.map((p,i)=>`<button type="button" class="autocomplete-item" onpointerdown="event.preventDefault();chooseDeliveryCity(${i})"><b>${esc(p.name)}</b><small>${esc(p.sub)}</small></button>`).join(''):'<div class="notice yellow">Nessuna città trovata.</div>'
+  }catch(e){if(queryId===DELIVERY_QUERY_ID)deliverySearchMessage(box,'Ricerca temporaneamente non disponibile.')}
+}
+async function chooseDeliveryCity(i){
+  let pt=DELIVERY_CITY_RESULTS[i];if(!pt)return;let input=document.getElementById('nrCity');if(input)input.value=pt.name||pt.city;
+  DELIVERY_CITY_POS={...pt,city:pt.name||pt.city};HOME_POS=null;let box=document.getElementById('deliveryCitySuggest');if(box)box.innerHTML='';
+  let mapEl=document.getElementById('deliveryMap');if(mapEl?.classList.contains('hidden'))await toggleDeliveryMap();else if(DELIVERY_MAP)DELIVERY_MAP.setView([pt.lat,pt.lng],15);
+  let status=document.getElementById('nrStatus');if(status)status.textContent=`✓ Mappa centrata su ${input?.value||'città scelta'}. Ora scrivi la via oppure tocca il punto esatto.`;
+  document.getElementById('nrStreet')?.focus()
+}
+async function suggestDeliveryStreets(){
+  let city=document.getElementById('nrCity')?.value.trim()||'',input=document.getElementById('nrStreet'),box=document.getElementById('deliveryStreetSuggest');if(!input||!box)return;
+  let street=input.value.trim(),queryId=++DELIVERY_QUERY_ID;if(city.length<2){deliverySearchMessage(box,'Prima scegli la città.');return}if(street.length<2){box.innerHTML='';return}
+  try{
+    let points=[],bias=DELIVERY_CITY_POS?`&lat=${DELIVERY_CITY_POS.lat}&lon=${DELIVERY_CITY_POS.lng}`:'';
+    try{
+      let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(street+', '+city)}&limit=12&layer=street&layer=house${bias}`);
+      points=fs.map(f=>{let pt=photonFeatureToPoint(f),p=f.properties||{};return {...pt,name:pt.street||p.name||'',sub:[city,p.postcode].filter(Boolean).join(' · ')}})
+    }catch(e){}
+    if(!points.length){let ns=await nominatimDeliverySearch(street+', '+city,12);points=ns.map(x=>{let pt=nominatimDeliveryPoint(x),a=x.address||{};return {...pt,name:pt.street||x.name||'',sub:[city,a.postcode].filter(Boolean).join(' · ')}})}
+    if(queryId!==DELIVERY_QUERY_ID||input.value.trim()!==street)return;
+    let seen=new Set();DELIVERY_STREET_RESULTS=points.filter(p=>{let k=p.name.toLowerCase();if(!p.name||seen.has(k))return false;seen.add(k);return true}).slice(0,8);
+    box.innerHTML=DELIVERY_STREET_RESULTS.length?DELIVERY_STREET_RESULTS.map((p,i)=>`<button type="button" class="autocomplete-item" onpointerdown="event.preventDefault();chooseDeliveryStreet(${i})"><b>${esc(p.name)}</b><small>${esc(p.sub)}</small></button>`).join(''):'<div class="notice yellow">Nessuna via trovata: continua a scrivere o scegli sulla mappa.</div>'
+  }catch(e){if(queryId===DELIVERY_QUERY_ID)deliverySearchMessage(box,'Ricerca vie temporaneamente non disponibile.')}
+}
+async function chooseDeliveryStreet(i){
+  let pt=DELIVERY_STREET_RESULTS[i];if(!pt)return;let street=document.getElementById('nrStreet'),city=document.getElementById('nrCity');
+  if(street)street.value=pt.name||pt.street;let cityText=city?.value.trim()||pt.city||'';if(city&&!city.value.trim())city.value=cityText;
+  HOME_POS={...pt,city:cityText,street:street?.value||pt.street,label:canonicalDeliveryLabel(street?.value||pt.street,cityText),cityText,streetText:street?.value||pt.street};
+  let box=document.getElementById('deliveryStreetSuggest');if(box)box.innerHTML='';let mapEl=document.getElementById('deliveryMap');if(mapEl?.classList.contains('hidden'))await toggleDeliveryMap();
+  updateDeliveryMapMarker(HOME_POS);if(DELIVERY_MAP)DELIVERY_MAP.setView([pt.lat,pt.lng],18);showPickedDelivery(HOME_POS)
+}
+async function reverseDeliveryPoint(pt){
+  try{
+    let r=await fetch(`https://photon.komoot.io/reverse?lat=${pt.lat}&lon=${pt.lng}`);if(!r.ok)throw new Error('reverse');let j=await r.json(),f=(j.features||[])[0];if(!f)throw new Error('reverse');return {...photonFeatureToPoint(f),lat:pt.lat,lng:pt.lng}
+  }catch(e){
+    let r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${pt.lat}&lon=${pt.lng}`,{headers:{'Accept-Language':'it'}});if(!r.ok)throw new Error('Indirizzo non trovato sulla mappa');let x=nominatimDeliveryPoint(await r.json());return {...x,lat:pt.lat,lng:pt.lng}
+  }
+}
+function showPickedDelivery(pt){
+  let el=document.getElementById('deliveryPicked');if(!el||!pt)return;let city=pt.cityText||document.getElementById('nrCity')?.value||pt.city,street=pt.streetText||document.getElementById('nrStreet')?.value||pt.street;
+  el.classList.remove('hidden');el.innerHTML=`✓ Destinazione impostata<br><b>${esc(canonicalDeliveryLabel(street,city))}</b>`
+}
+function updateDeliveryMapMarker(pt){
+  if(!DELIVERY_MAP||!pt)return;if(!DELIVERY_MARKER)DELIVERY_MARKER=L.marker([pt.lat,pt.lng]).addTo(DELIVERY_MAP);else DELIVERY_MARKER.setLatLng([pt.lat,pt.lng]);DELIVERY_MAP.panTo([pt.lat,pt.lng])
+}
+async function toggleDeliveryMap(){
+  let el=document.getElementById('deliveryMap');if(!el)return;if(!el.classList.contains('hidden')){el.classList.add('hidden');if(DELIVERY_MAP){DELIVERY_MAP.remove();DELIVERY_MAP=null;DELIVERY_MARKER=null}return}
+  el.classList.remove('hidden');let center=HOME_POS||DELIVERY_CITY_POS;
+  if(!center){let city=document.getElementById('nrCity')?.value.trim()||'';if(city){try{let ns=await nominatimDeliverySearch(city+', Italia',1);if(ns.length){let pt=nominatimDeliveryPoint(ns[0]);center={...pt,city};DELIVERY_CITY_POS=center}}catch(e){}}}
+  if(!center)center={lat:42.5,lng:12.5};DELIVERY_MAP=L.map('deliveryMap',{tap:true}).setView([center.lat,center.lng],HOME_POS?18:DELIVERY_CITY_POS?15:6);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(DELIVERY_MAP);if(HOME_POS)updateDeliveryMapMarker(HOME_POS);
+  DELIVERY_MAP.on('click',async ev=>{let status=document.getElementById('nrStatus');if(status)status.textContent='Leggo via e numero civico…';try{let pt=await reverseDeliveryPoint({lat:ev.latlng.lat,lng:ev.latlng.lng}),city=document.getElementById('nrCity'),street=document.getElementById('nrStreet');let cityText=city?.value.trim()||pt.city||'';if(city&&!city.value.trim())city.value=cityText;if(street)street.value=pt.street||'';HOME_POS={...pt,city:cityText,street:street?.value||pt.street,cityText,streetText:street?.value||pt.street,label:canonicalDeliveryLabel(street?.value||pt.street,cityText)};updateDeliveryMapMarker(HOME_POS);showPickedDelivery(HOME_POS);if(status)status.textContent='✓ Città e via compilate dal punto scelto sulla mappa.'}catch(e){if(status)status.textContent='Errore mappa: '+e.message}});
+  setTimeout(()=>DELIVERY_MAP?.invalidateSize(),120)
+}
 async function fillDeliveryWithGps(){
   let st=document.getElementById('nrStatus');if(st)st.textContent='Rilevo la posizione GPS…';
   try{
@@ -500,9 +589,9 @@ async function geocodeDeliveryAddress(city,street){
   let q=[street,city,'Italia'].filter(Boolean).join(', ');
   try{
     let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&layer=house&layer=street`);
-    if(fs.length){let pt=photonFeatureToPoint(fs[0]);return {lat:pt.lat,lng:pt.lng,label:pt.label||q,city:pt.city,street:pt.street}}
+    if(fs.length){let pt=photonFeatureToPoint(fs[0]);return {lat:pt.lat,lng:pt.lng,label:canonicalDeliveryLabel(street,city),city,street}}
   }catch(e){}
-  let pt=await geocode(q);return {lat:pt.lat,lng:pt.lng,label:pt.label||q,city,street}
+  let pt=await geocode(q);return {lat:pt.lat,lng:pt.lng,label:canonicalDeliveryLabel(street,city),city,street}
 }
 async function geocode(q){let url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q='+encodeURIComponent(q);let res=await fetch(url,{headers:{'Accept-Language':'it'}});if(!res.ok)throw new Error('Geocodifica non disponibile');let a=await res.json();if(!a.length)throw new Error('Indirizzo non trovato: '+q);return{lat:+a[0].lat,lng:+a[0].lon,label:a[0].display_name}}
 async function publishRequest(){
@@ -513,7 +602,7 @@ async function publishRequest(){
     let a=(REQUEST_CATEGORY==='farmacia'&&SELECTED_PLACE)?{lat:SELECTED_PLACE.lat,lng:SELECTED_PLACE.lng,label:SELECTED_PLACE.address||SELECTED_PLACE.name}:await geocode(from);
     let b=(HOME_POS&&HOME_POS.cityText===city&&HOME_POS.streetText===street)?HOME_POS:await geocodeDeliveryAddress(city,street);
     let fullDesc=`Per: ${person}${desc?`\nNote: ${desc}`:''}`;
-    let deliveryLabel=b.label||`${street}, ${city}`;
+    let deliveryLabel=canonicalDeliveryLabel(street,city);
     let {error}=await db.from('consegne').insert({cliente_id:SESSION.user.id,categoria:REQUEST_CATEGORY,titolo:title,descrizione:fullDesc,ritiro_indirizzo:a.label,ritiro_lat:a.lat,ritiro_lng:a.lng,consegna_indirizzo:deliveryLabel,consegna_lat:b.lat,consegna_lng:b.lng,compenso_rider:pay});if(error)throw error;
     await loadRequests();renderAll();closeSheet();SELECTED_PLACE=null;SEARCH_POS=null;HOME_POS=null;DELIVERY_CITY_POS=null;if(DELIVERY_MAP){DELIVERY_MAP.remove();DELIVERY_MAP=null;DELIVERY_MARKER=null}alert('Richiesta pubblicata.')
   }catch(e){nrStatus.textContent='Errore indirizzo: '+e.message+' · prova a scegliere un suggerimento, il GPS o un punto sulla mappa.'}
