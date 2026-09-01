@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply_request_deadline_patch.py
+      - .github/workflows/apply-request-deadline-patch.yml
 
 permissions:
   contents: write
