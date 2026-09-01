@@ -1,0 +1,54 @@
+name: Restore request categories
+
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-request-categories.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore category buttons
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text()
+          css='''.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}.choice{padding:14px;text-align:left;border:1px solid var(--line);border-radius:16px;background:#fff}.choice.selected{background:#eef5ff;border-color:#78a8ff;box-shadow:0 5px 14px rgba(11,102,255,.08)}.choice .em{font-size:22px}.choice b{display:block;font-size:12px;margin-top:6px}.choice small{display:block;color:var(--muted);font-size:8px;margin-top:3px}.backrow{display:grid;grid-template-columns:auto 1fr;gap:8px;margin-top:10px}'''
+          if '.choices{display:grid' not in s:
+              s=s.replace('.field{margin:11px 0}', css+'.field{margin:11px 0}',1)
+          old=re.search(r"function openNewRequest\(\)\{.*?\}\nasync function geocode",s,re.S)
+          if not old:
+              raise SystemExit('openNewRequest block not found')
+          new=r'''let REQUEST_CATEGORY='spesa';
+function openNewRequest(step=1){
+  if(step===1){
+    openSheet(`${head('NUOVA RICHIESTA','Di cosa hai bisogno?','Scegli il tipo di commissione.')}<div class="choices">${[
+      ['spesa','🛒','Spesa','Piccola spesa o prodotti già pronti'],
+      ['farmacia','💊','Farmacia','Ritiro farmaci o ordine già preparato'],
+      ['ritiro','📦','Ritiro','Pacco, documento o altro ritiro'],
+      ['altro','🤝','Altro','Una piccola commissione locale']
+    ].map(x=>`<button class="choice ${REQUEST_CATEGORY===x[0]?'selected':''}" onclick="REQUEST_CATEGORY='${x[0]}';openNewRequest(1)"><span class="em">${x[1]}</span><b>${x[2]}</b><small>${x[3]}</small></button>`).join('')}</div><button class="btn teal full" onclick="openNewRequest(2)">Continua →</button>`);return
+  }
+  const presets={spesa:['Ritirare una spesa','Es. prodotti già preparati o piccola spesa'],farmacia:['Ritiro in farmacia','Es. ordine già pronto al banco'],ritiro:['Ritirare un pacco','Es. pacco, documento o ordine da ritirare'],altro:['Piccola commissione','Descrivi cosa bisogna fare']};
+  let pr=presets[REQUEST_CATEGORY]||presets.altro;
+  openSheet(`${head('NUOVA RICHIESTA',pr[0],'Verrà salvata nel database e comparirà sugli altri telefoni della beta.')}<div class="kind" style="display:inline-block;margin-top:10px">${REQUEST_CATEGORY.toUpperCase()}</div><div class="field"><label>TITOLO</label><input id="nrTitle" value="${pr[0]}"></div><div class="field"><label>DESCRIZIONE</label><textarea id="nrDesc" rows="3" placeholder="${pr[1]}"></textarea></div><div class="field"><label>DOVE RITIRARE</label><input id="nrFrom" placeholder="Indirizzo completo o luogo"></div><div class="field"><label>DOVE CONSEGNARE</label><input id="nrTo" placeholder="Indirizzo completo"></div><div class="field"><label>COMPENSO RIDER</label><select id="nrPay"><option value="3.5">€ 3,50</option><option value="4" selected>€ 4,00</option><option value="5">€ 5,00</option><option value="6">€ 6,00</option></select></div><div id="nrStatus" class="notice green">📍 Gli indirizzi verranno geocodificati per consentire il matching GPS.</div><div class="backrow"><button class="btn outline" onclick="openNewRequest(1)">← Tipo</button><button class="btn teal" onclick="publishRequest()">Pubblica richiesta</button></div>`)
+}
+async function geocode'''
+          s=s[:old.start()]+new+s[old.end():]
+          s=s.replace("cliente_id:SESSION.user.id,titolo:title,descrizione:desc,", "cliente_id:SESSION.user.id,categoria:REQUEST_CATEGORY,titolo:title,descrizione:desc,",1)
+          p.write_text(s)
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Restore request category buttons"
+          git push
