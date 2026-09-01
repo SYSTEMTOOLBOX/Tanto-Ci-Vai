@@ -300,7 +300,7 @@ function openRunnerExternalNavigation(){
 }
 function photonFeatureToPoint(f){
   let p=f?.properties||{},c=f?.geometry?.coordinates||[];
-  let city=p.city||p.locality||p.district||p.county||p.name||'';
+  let city=p.city||p.locality||((p.type==='city'||p.type==='locality'||p.type==='district')?p.name:'')||p.district||p.county||p.name||'';
   let street=[p.street||((p.osm_value==='street'||p.osm_value==='residential')?p.name:''),p.housenumber].filter(Boolean).join(' ');
   let label=[street,city,p.postcode,p.state].filter(Boolean).join(', ');
   return {lat:+c[1],lng:+c[0],city,street,label:label||p.name||'',raw:p}
@@ -395,7 +395,7 @@ async function toggleDeliveryMap(){
 }
 function photonFeatureToPoint(f){
   let p=f?.properties||{},c=f?.geometry?.coordinates||[];
-  let city=p.city||p.locality||p.district||p.county||p.name||'';
+  let city=p.city||p.locality||((p.type==='city'||p.type==='locality'||p.type==='district')?p.name:'')||p.district||p.county||p.name||'';
   let street=[p.street||((p.osm_value==='street'||p.osm_value==='residential')?p.name:''),p.housenumber].filter(Boolean).join(' ');
   let label=[street,city,p.postcode,p.state].filter(Boolean).join(', ');
   return {lat:+c[1],lng:+c[0],city,street,label:label||p.name||'',raw:p}
