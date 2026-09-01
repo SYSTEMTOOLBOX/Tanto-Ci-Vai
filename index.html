@@ -323,7 +323,7 @@ async function suggestDeliveryCities(){
   let input=document.getElementById('nrCity'),box=document.getElementById('deliveryCitySuggest');if(!input||!box)return;
   let q=input.value.trim();if(q.length<2){box.innerHTML='';return}
   try{
-    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=it&layer=city&layer=locality&layer=district`;
+    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&layer=city&layer=locality&layer=district`;
     let fs=await photonSearch(url),seen=new Set();
     DELIVERY_CITY_RESULTS=fs.filter(f=>{let k=citySuggestionLabel(f).toLowerCase();if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,6);
     box.innerHTML=DELIVERY_CITY_RESULTS.map((f,i)=>`<button type="button" class="autocomplete-item" onclick="chooseDeliveryCity(${i})"><b>${esc(f.properties?.name||'Località')}</b><small>${esc([f.properties?.county,f.properties?.state].filter(Boolean).join(' · '))}</small></button>`).join('')
@@ -341,7 +341,7 @@ async function suggestDeliveryStreets(){
   let street=input.value.trim();if(city.length<2||street.length<2){box.innerHTML='';return}
   try{
     let bias=DELIVERY_CITY_POS?`&lat=${DELIVERY_CITY_POS.lat}&lon=${DELIVERY_CITY_POS.lng}`:'';
-    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(street+', '+city)}&limit=10&lang=it&layer=street&layer=house${bias}`;
+    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(street+', '+city)}&limit=10&layer=street&layer=house${bias}`;
     let fs=await photonSearch(url),seen=new Set();
     DELIVERY_STREET_RESULTS=fs.filter(f=>{let pt=photonFeatureToPoint(f),name=pt.street||f.properties?.name||'';let k=(name+'|'+pt.city).toLowerCase();if(!name||seen.has(k))return false;seen.add(k);return true}).slice(0,7);
     box.innerHTML=DELIVERY_STREET_RESULTS.map((f,i)=>{let pt=photonFeatureToPoint(f),name=pt.street||f.properties?.name||'Indirizzo';return `<button type="button" class="autocomplete-item" onclick="chooseDeliveryStreet(${i})"><b>${esc(name)}</b><small>${esc([pt.city,f.properties?.postcode,f.properties?.state].filter(Boolean).join(' · '))}</small></button>`}).join('')
@@ -357,7 +357,7 @@ function showPickedDelivery(pt){
   let el=document.getElementById('deliveryPicked');if(!el||!pt)return;el.classList.remove('hidden');el.innerHTML=`✓ Destinazione impostata<br><b>${esc(pt.label||[pt.street,pt.city].filter(Boolean).join(', '))}</b>`
 }
 async function reverseDeliveryPoint(pt){
-  let r=await fetch(`https://photon.komoot.io/reverse?lat=${pt.lat}&lon=${pt.lng}&lang=it`);if(!r.ok)throw new Error('Indirizzo non trovato sulla mappa');
+  let r=await fetch(`https://photon.komoot.io/reverse?lat=${pt.lat}&lon=${pt.lng}`);if(!r.ok)throw new Error('Indirizzo non trovato sulla mappa');
   let j=await r.json(),f=(j.features||[])[0];if(!f)return {...pt,label:`${pt.lat.toFixed(6)}, ${pt.lng.toFixed(6)}`};
   let x=photonFeatureToPoint(f);return {...x,lat:pt.lat,lng:pt.lng}
 }
@@ -374,7 +374,7 @@ async function toggleDeliveryMap(){
   if(!center){
     let city=document.getElementById('nrCity')?.value.trim()||'';
     if(city){
-      try{let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(city+', Italia')}&limit=1&lang=it&layer=city&layer=locality&layer=district`);if(fs.length){center=photonFeatureToPoint(fs[0]);DELIVERY_CITY_POS=center}}catch(e){}
+      try{let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(city+', Italia')}&limit=1&layer=city&layer=locality&layer=district`);if(fs.length){center=photonFeatureToPoint(fs[0]);DELIVERY_CITY_POS=center}}catch(e){}
     }
   }
   if(!center)center={lat:42.5,lng:12.5};
@@ -418,7 +418,7 @@ async function suggestDeliveryCities(){
   let input=document.getElementById('nrCity'),box=document.getElementById('deliveryCitySuggest');if(!input||!box)return;
   let q=input.value.trim();if(q.length<2){box.innerHTML='';return}
   try{
-    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=it&layer=city&layer=locality&layer=district`;
+    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&layer=city&layer=locality&layer=district`;
     let fs=await photonSearch(url),seen=new Set();
     DELIVERY_CITY_RESULTS=fs.filter(f=>{let k=citySuggestionLabel(f).toLowerCase();if(!k||seen.has(k))return false;seen.add(k);return true}).slice(0,6);
     box.innerHTML=DELIVERY_CITY_RESULTS.map((f,i)=>`<button type="button" class="autocomplete-item" onclick="chooseDeliveryCity(${i})"><b>${esc(f.properties?.name||'Località')}</b><small>${esc([f.properties?.county,f.properties?.state].filter(Boolean).join(' · '))}</small></button>`).join('')
@@ -436,7 +436,7 @@ async function suggestDeliveryStreets(){
   let street=input.value.trim();if(city.length<2||street.length<2){box.innerHTML='';return}
   try{
     let bias=DELIVERY_CITY_POS?`&lat=${DELIVERY_CITY_POS.lat}&lon=${DELIVERY_CITY_POS.lng}`:'';
-    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(street+', '+city)}&limit=10&lang=it&layer=street&layer=house${bias}`;
+    let url=`https://photon.komoot.io/api/?q=${encodeURIComponent(street+', '+city)}&limit=10&layer=street&layer=house${bias}`;
     let fs=await photonSearch(url),seen=new Set();
     DELIVERY_STREET_RESULTS=fs.filter(f=>{let pt=photonFeatureToPoint(f),name=pt.street||f.properties?.name||'';let k=(name+'|'+pt.city).toLowerCase();if(!name||seen.has(k))return false;seen.add(k);return true}).slice(0,7);
     box.innerHTML=DELIVERY_STREET_RESULTS.map((f,i)=>{let pt=photonFeatureToPoint(f),name=pt.street||f.properties?.name||'Indirizzo';return `<button type="button" class="autocomplete-item" onclick="chooseDeliveryStreet(${i})"><b>${esc(name)}</b><small>${esc([pt.city,f.properties?.postcode,f.properties?.state].filter(Boolean).join(' · '))}</small></button>`}).join('')
@@ -452,7 +452,7 @@ function showPickedDelivery(pt){
   let el=document.getElementById('deliveryPicked');if(!el||!pt)return;el.classList.remove('hidden');el.innerHTML=`✓ Destinazione impostata<br><b>${esc(pt.label||[pt.street,pt.city].filter(Boolean).join(', '))}</b>`
 }
 async function reverseDeliveryPoint(pt){
-  let r=await fetch(`https://photon.komoot.io/reverse?lat=${pt.lat}&lon=${pt.lng}&lang=it`);if(!r.ok)throw new Error('Indirizzo non trovato sulla mappa');
+  let r=await fetch(`https://photon.komoot.io/reverse?lat=${pt.lat}&lon=${pt.lng}`);if(!r.ok)throw new Error('Indirizzo non trovato sulla mappa');
   let j=await r.json(),f=(j.features||[])[0];if(!f)return {...pt,label:`${pt.lat.toFixed(6)}, ${pt.lng.toFixed(6)}`};
   let x=photonFeatureToPoint(f);return {...x,lat:pt.lat,lng:pt.lng}
 }
@@ -469,7 +469,7 @@ async function toggleDeliveryMap(){
   if(!center){
     let city=document.getElementById('nrCity')?.value.trim()||'';
     if(city){
-      try{let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(city+', Italia')}&limit=1&lang=it&layer=city&layer=locality&layer=district`);if(fs.length){center=photonFeatureToPoint(fs[0]);DELIVERY_CITY_POS=center}}catch(e){}
+      try{let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(city+', Italia')}&limit=1&layer=city&layer=locality&layer=district`);if(fs.length){center=photonFeatureToPoint(fs[0]);DELIVERY_CITY_POS=center}}catch(e){}
     }
   }
   if(!center)center={lat:42.5,lng:12.5};
@@ -499,7 +499,7 @@ async function fillDeliveryWithGps(){
 async function geocodeDeliveryAddress(city,street){
   let q=[street,city,'Italia'].filter(Boolean).join(', ');
   try{
-    let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=it&layer=house&layer=street`);
+    let fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&layer=house&layer=street`);
     if(fs.length){let pt=photonFeatureToPoint(fs[0]);return {lat:pt.lat,lng:pt.lng,label:pt.label||q,city:pt.city,street:pt.street}}
   }catch(e){}
   let pt=await geocode(q);return {lat:pt.lat,lng:pt.lng,label:pt.label||q,city,street}
