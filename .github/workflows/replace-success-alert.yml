@@ -1,0 +1,32 @@
+name: Replace publish success alert
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/replace_success_alert.py
+      - scripts/.trigger_success_popup
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/replace_success_alert.py
+      - name: Commit generated patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Replace browser success alert with branded popup [skip ci]"
+          git push
