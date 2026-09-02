@@ -254,7 +254,7 @@ function offerCountdown(r){
 }
 function setAuthMode(m){AUTH_MODE=m;loginTab.classList.toggle('on',m==='login');signupTab.classList.toggle('on',m==='signup');signupFields.classList.toggle('hidden',m!=='signup');authBtn.textContent=m==='login'?'Accedi':'Crea profilo';authStatus.textContent=m==='login'?'Accedi con email e password.':'Il nome e il telefono verranno salvati nel tuo profilo.'}
 async function submitAuth(){let email=authEmail.value.trim(),password=authPassword.value;if(!email||password.length<6){authStatus.textContent='Inserisci una email valida e una password di almeno 6 caratteri.';return}authBtn.disabled=true;try{if(AUTH_MODE==='signup'){let nome=authName.value.trim(),telefono=authPhone.value.trim();if(!nome){authStatus.textContent='Inserisci il nome.';return}let {data,error}=await db.auth.signUp({email,password,options:{data:{nome,telefono},emailRedirectTo:location.origin+location.pathname}});if(error)throw error;try{localStorage.setItem('tcv_intro_pending_v1',email.toLowerCase())}catch(e){}if(!data.session){authStatus.textContent='Registrazione creata. Controlla la tua email e conferma il link, poi torna qui e accedi.';return}await afterLogin(data.session)}else{let {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;await afterLogin(data.session)}}catch(e){authStatus.textContent='Errore: '+e.message}finally{authBtn.disabled=false}}
-async function afterLogin(session){SESSION=session;authView.classList.add('hidden');appView.classList.remove('hidden');bottomNav.classList.remove('hidden');let splashPromise=runStartupSplash(session);await ensureProfile();await loadRequests();subscribeRealtime();renderAll();if(!window.__tcvOfferTick)window.__tcvOfferTick=setInterval(()=>{if(SESSION)renderAll()},60000);await splashPromise}
+async function afterLogin(session){SESSION=session;authView.classList.add('hidden');appView.classList.remove('hidden');bottomNav.classList.remove('hidden');let splashPromise=runStartupSplash(session);await ensureProfile();await loadRequests();subscribeRealtime();renderAll();if(!window.__tcvOfferTick)window.__tcvOfferTick=setInterval(()=>{if(SESSION)renderAll()},60000);await splashPromise;setTimeout(()=>tcvMaybeOfferPush(),350);setTimeout(()=>tcvOpenRequestFromUrl(),500)}
 async function ensureProfile(){let uid=SESSION.user.id;let {data}=await db.from('profiles').select('*').eq('id',uid).maybeSingle();if(!data){let meta=SESSION.user.user_metadata||{};await db.from('profiles').insert({id:uid,nome:meta.nome||'',telefono:meta.telefono||''});({data}=await db.from('profiles').select('*').eq('id',uid).maybeSingle())}PROFILE=data||{id:uid,nome:'Utente',telefono:''};let initials=(PROFILE.nome||'TC').split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();avatar.textContent=initials||'TC';userLabel.textContent=PROFILE.nome||SESSION.user.email}
 async function loadRequests(){feedStatus.textContent='Aggiorno…';try{await db.rpc('scadi_offerte')}catch(e){}let {data,error}=await db.from('consegne').select('*').order('created_at',{ascending:false});if(error){feedStatus.textContent='Errore sync';throw error}REQUESTS=data||[];feedStatus.textContent='Sincronizzate'}
 function subscribeRealtime(){if(CHANNEL)db.removeChannel(CHANNEL);CHANNEL=db.channel('tcv-consegne').on('postgres_changes',{event:'*',schema:'public',table:'consegne'},async()=>{syncBadge.textContent='● SYNC';await loadRequests();renderAll();setTimeout(()=>syncBadge.textContent='● ONLINE',700)}).subscribe()}
@@ -952,7 +952,7 @@ async function publishRequest(){
     let b=(HOME_POS&&HOME_POS.cityText===city&&HOME_POS.streetText===street)?HOME_POS:await geocodeDeliveryAddress(city,street);
     let fullDesc=`Per: ${person}${desc?`\nNote: ${desc}`:''}`;
     let deliveryLabel=canonicalDeliveryLabel(street,city);
-    let {error}=await db.from('consegne').insert({cliente_id:SESSION.user.id,categoria:REQUEST_CATEGORY,titolo:title,descrizione:fullDesc,ritiro_indirizzo:a.label,ritiro_lat:a.lat,ritiro_lng:a.lng,consegna_indirizzo:deliveryLabel,consegna_lat:b.lat,consegna_lng:b.lng,consegna_entro:deadline.toISOString(),offerta_scade_il:offerExpires.toISOString(),compenso_rider:pay});if(error)throw error;
+    let {data:created,error}=await db.from('consegne').insert({cliente_id:SESSION.user.id,categoria:REQUEST_CATEGORY,titolo:title,descrizione:fullDesc,ritiro_indirizzo:a.label,ritiro_lat:a.lat,ritiro_lng:a.lng,consegna_indirizzo:deliveryLabel,consegna_lat:b.lat,consegna_lng:b.lng,consegna_entro:deadline.toISOString(),offerta_scade_il:offerExpires.toISOString(),compenso_rider:pay}).select('id').single();if(error)throw error;try{await db.functions.invoke('send-request-push',{body:{request_id:created.id}})}catch(pushErr){console.warn('Push send failed',pushErr)}
     await loadRequests();renderAll();closeSheet();SELECTED_PLACE=null;SEARCH_POS=null;HOME_POS=null;DELIVERY_CITY_POS=null;if(DELIVERY_MAP){DELIVERY_MAP.remove();DELIVERY_MAP=null;DELIVERY_MARKER=null}showRequestPublishedSuccess()
   }catch(e){nrStatus.textContent='Errore indirizzo: '+e.message+' · prova a scegliere un suggerimento, il GPS o un punto sulla mappa.'}
 }
@@ -966,7 +966,7 @@ async function setStatus(id,status){let {data,error}=await db.rpc('aggiorna_stat
 function page(p){['home','missions','myreq','mapPage','profile'].forEach(x=>{document.getElementById(x).classList.toggle('hidden',x!==p);document.querySelector(`[data-p="${x}"]`)?.classList.toggle('active',x===p)});if(p==='missions')renderMissions();if(p==='myreq')renderMyRequests();if(p==='mapPage')renderMapPage();if(p==='profile')renderProfile();scrollTo(0,0)}
 function renderMissions(){let arr=REQUESTS.filter(r=>r.rider_id===SESSION.user.id&&r.stato!=='annullata');missions.innerHTML=`<div class="pagehead"><div class="k">LE TUE ATTIVITÀ</div><h2>Missioni</h2><p>Commissioni che hai accettato.</p></div>${arr.length?arr.map(card).join(''):'<div class="empty">Non hai ancora missioni assegnate.</div>'}`}
 function renderMyRequests(){let arr=REQUESTS.filter(r=>r.cliente_id===SESSION.user.id);myreq.innerHTML=`<div class="pagehead"><div class="k">RICHIESTE PUBBLICATE</div><h2>Le mie richieste</h2><p>Stato reale delle commissioni che hai inserito.</p></div>${arr.length?arr.map(card).join(''):'<div class="empty">Non hai ancora pubblicato richieste.</div>'}`}
-function renderProfile(){profile.innerHTML=`<div class="pagehead"><div class="k">PROFILO</div><h2>${esc(PROFILE.nome||'Profilo')}</h2><p>${esc(SESSION.user.email||'')}</p></div><div class="req"><div class="field"><label>NOME</label><input id="pfName" value="${esc(PROFILE.nome||'')}"></div><div class="field"><label>TELEFONO</label><input id="pfPhone" value="${esc(PROFILE.telefono||'')}"></div><button class="btn teal full" onclick="saveProfile()">Salva profilo</button><button class="btn outline full" style="margin-top:8px" onclick="logout()">Esci dall'account</button></div><div class="notice green" style="margin-top:10px">✓ Profilo, richieste e missioni sono salvati online in modo sicuro.</div>`}
+function renderProfile(){let pushState=tcvPushStatusText();profile.innerHTML=`<div class="pagehead"><div class="k">PROFILO</div><h2>${esc(PROFILE.nome||'Profilo')}</h2><p>${esc(SESSION.user.email||'')}</p></div><div class="req"><div class="field"><label>NOME</label><input id="pfName" value="${esc(PROFILE.nome||'')}"></div><div class="field"><label>TELEFONO</label><input id="pfPhone" value="${esc(PROFILE.telefono||'')}"></div><button class="btn teal full" onclick="saveProfile()">Salva profilo</button><button class="btn outline full" style="margin-top:8px" onclick="logout()">Esci dall'account</button></div><div class="req" style="margin-top:10px"><h3>🔔 Notifiche richieste</h3><p id="pushProfileStatus">${esc(pushState)}</p><button class="btn primary full" style="margin-top:9px" onclick="tcvEnablePush(true)">Attiva notifiche</button><button class="btn outline full" style="margin-top:7px" onclick="tcvDisablePush()">Disattiva su questo telefono</button></div><div class="notice green" style="margin-top:10px">✓ Profilo, richieste e missioni sono salvati online in modo sicuro.</div>`}
 async function saveProfile(){let nome=pfName.value.trim(),telefono=pfPhone.value.trim();let {error}=await db.from('profiles').update({nome,telefono}).eq('id',SESSION.user.id);if(error){alert(error.message);return}PROFILE={...PROFILE,nome,telefono};await ensureProfile();renderProfile();alert('Profilo salvato.')}
 async function logout(){await db.auth.signOut();location.reload()}
 function mapPlanRequests(extraId=null){
@@ -1239,10 +1239,58 @@ function runStartupSplash(session){
 </script>
 
 <script>
+/* TCV_WEB_PUSH_V1 */
+function tcvUrlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4),base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)))
+}
+function tcvPushStatusText(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window))return 'Notifiche push non supportate su questo dispositivo/browser.';
+  if(Notification.permission==='denied')return 'Notifiche bloccate nelle impostazioni del telefono/browser.';
+  if(Notification.permission==='granted')return 'Notifiche consentite su questo telefono.';
+  return 'Notifiche non ancora attivate.'
+}
+async function tcvSavePushSubscription(sub){
+  const json=sub.toJSON(),keys=json.keys||{};
+  const row={user_id:SESSION.user.id,endpoint:sub.endpoint,p256dh:keys.p256dh,auth_key:keys.auth,user_agent:navigator.userAgent,enabled:true,updated_at:new Date().toISOString()};
+  const {error}=await db.from('push_subscriptions').upsert(row,{onConflict:'endpoint'});if(error)throw error
+}
+async function tcvEnablePush(fromProfile=false){
+  try{
+    if(!SESSION)throw new Error('Accedi prima di attivare le notifiche.');
+    if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window))throw new Error('Notifiche push non supportate su questo dispositivo/browser.');
+    let permission=Notification.permission;
+    if(permission!=='granted')permission=await Notification.requestPermission();
+    if(permission!=='granted'){if(permission==='denied')localStorage.setItem('tcv_push_prompt_v1','denied');return false}
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){const {data:key,error}=await db.rpc('get_push_public_key');if(error||!key)throw error||new Error('Chiave notifiche non disponibile');sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:tcvUrlBase64ToUint8Array(key)})}
+    await tcvSavePushSubscription(sub);localStorage.setItem('tcv_push_prompt_v1','enabled');
+    if(fromProfile){alert('Notifiche attivate su questo telefono.');renderProfile()}
+    return true
+  }catch(e){if(fromProfile)alert('Notifiche: '+e.message);console.warn(e);return false}
+}
+async function tcvDisablePush(){
+  try{
+    const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+    if(sub){await db.from('push_subscriptions').delete().eq('endpoint',sub.endpoint);await sub.unsubscribe()}
+    localStorage.setItem('tcv_push_prompt_v1','disabled');alert('Notifiche disattivate su questo telefono.');renderProfile()
+  }catch(e){alert('Non riesco a disattivare le notifiche: '+e.message)}
+}
+function tcvMaybeOfferPush(){
+  if(!SESSION||!('Notification' in window)||Notification.permission==='denied')return;
+  let state='';try{state=localStorage.getItem('tcv_push_prompt_v1')||''}catch(e){}
+  if(state)return;
+  openSheet(`${head('NOTIFICHE','Vuoi ricevere le nuove richieste?','Se accetti, il telefono ti avvisa con la normale notifica di sistema anche quando Tanto Ci Vai non è aperta.')}<div class="notice green" style="margin-top:10px">🔔 Puoi disattivarle in qualsiasi momento dal Profilo o dalle impostazioni del telefono.</div><div class="rowbtn" style="margin-top:10px"><button class="btn outline" onclick="localStorage.setItem('tcv_push_prompt_v1','later');closeSheet()">Non ora</button><button class="btn primary" onclick="tcvEnablePush(false).then(ok=>{if(ok)closeSheet()})">Attiva notifiche</button></div>`)
+}
+function tcvOpenRequestById(id){if(!id||!SESSION)return;let r=REQUESTS.find(x=>x.id===id);if(r)openRequestDetails(id)}
+function tcvOpenRequestFromUrl(){try{let u=new URL(location.href),id=u.searchParams.get('request');if(id){tcvOpenRequestById(id);u.searchParams.delete('request');history.replaceState({},'',u.pathname+u.search+u.hash)}}catch(e){}}
+navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='TCV_OPEN_REQUEST')tcvOpenRequestById(event.data.request_id)});
+
 /* TCV_PWA_SHELL_V1 */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=1', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('./sw.js?v=2', { scope: './' }).catch(err => console.warn('SW registration failed', err));
   });
 }
 </script>
