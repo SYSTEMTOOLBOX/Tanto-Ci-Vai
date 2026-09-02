@@ -283,13 +283,27 @@ function card(r){
   let notes=esc(r.descrizione||'').replace(/\n/g,'<br>');
   return `<article class="req"><div class="reqhead"><span class="kind ${mine?'mine':''}">${mine?'MIA RICHIESTA':assigned?'MISSIONE':'DISPONIBILE'}</span><div style="display:flex;align-items:center;gap:6px">${orderBadge(r)}<span class="dist">${esc(statusLabel)}</span></div></div><h3>${esc(r.titolo)}</h3>${notes?`<p>${notes}</p>`:''}<div class="route"><div><small>RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>CONSEGNA</small><br>${esc(cleanDeliveryAddress(r.consegna_indirizzo))}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span>${mine?`<span class="pill">Servizio app ${euro(r.commissione_app)}</span>`:``}${r.offerta_scade_il?`<span class="pill">${offerCountdown(r)}</span>`:``}${r.consegna_entro?`<span class="pill">⏰ Entro ${formatDateTime(r.consegna_entro)}</span>`:''}${r.consegna_prevista?`<span class="pill">🕒 Consegna prevista ${formatDateTime(r.consegna_prevista)}</span>`:''}</div>${!mine&&requestOpen(r)?`<div class="rowbtn"><button class="btn outline" onclick="openRequestDetails('${r.id}')">Apri richiesta</button><button class="btn teal" onclick="acceptRequest('${r.id}')">Tanto ci vai?</button></div>`:''}${assigned?missionButtons(r):''}${mine&&requestOpen(r)?`<button class="btn danger full" style="margin-top:10px" onclick="setStatus('${r.id}','annullata')">Annulla richiesta</button>`:''}</article>`
 }
+function runnerPendingPickups(){
+  return REQUESTS.filter(x=>x.rider_id===SESSION.user.id&&x.stato==='accettata'&&Number.isFinite(+x.ritiro_lat)&&Number.isFinite(+x.ritiro_lng))
+}
+function runnerUniquePickupStops(reqs){
+  let seen=new Set(),out=[];
+  reqs.forEach(r=>{let lat=+r.ritiro_lat,lng=+r.ritiro_lng,key=lat.toFixed(5)+','+lng.toFixed(5);if(seen.has(key))return;seen.add(key);out.push({lat,lng,r})});
+  return out
+}
+function runnerOrderPickupStops(stops){
+  let start=USER_POS||MAP_PLAN_START;if(!start||!Number.isFinite(+start.lat)||!Number.isFinite(+start.lng))return [...stops];
+  let left=[...stops],ordered=[],cur={lat:+start.lat,lng:+start.lng};
+  while(left.length){let best=0,bestD=Infinity;left.forEach((x,i)=>{let d=mapPlanCrowKm(cur,x);if(d<bestD){bestD=d;best=i}});let hit=left.splice(best,1)[0];ordered.push(hit);cur=hit}
+  return ordered
+}
 function missionButtons(r){
   let next=r.stato==='accettata'?'ritirata':r.stato==='ritirata'?'in_consegna':r.stato==='in_consegna'?'consegnata':null;
   let label=next==='ritirata'?'📦 Ritirato':next==='in_consegna'?'Parto per consegna':next==='consegnata'?'Segna consegnata':'';
   if(!next)return '';
   let action=next==='ritirata'?`openPickupEta('${r.id}')`:`setStatus('${r.id}','${next}')`;
-  let goingToPickup=r.stato==='accettata';
-  let mapsLabel=goingToPickup?'📍 VAI AL RITIRO CON MAPS':'🏠 VAI ALLA CONSEGNA CON MAPS';
+  let pending=runnerPendingPickups(),stops=runnerUniquePickupStops(pending);
+  let mapsLabel=pending.length?(pending.length===1?'📍 VAI AL RITIRO CON MAPS':`📍 VAI AI RITIRI CON MAPS · ${pending.length} ordini${stops.length<pending.length?` / ${stops.length} fermate`:''}`):'🏠 VAI ALLA CONSEGNA CON MAPS';
   return `<button class="btn teal full" style="margin-top:11px;padding:15px;font-size:12px" onclick="openRunnerMapsStage('${r.id}')">${mapsLabel}</button><div class="rowbtn"><button class="btn outline" onclick="openRunnerNavigation('${r.id}')">🗺️ Mappa Tanto Ci Vai</button><button class="btn primary" onclick="${action}">${label}</button></div>`
 }
 function localDateTimeValue(d){
@@ -846,6 +860,14 @@ function runnerMapsTarget(r){
 function openRunnerMapsStage(id){
   let r=REQUESTS.find(x=>x.id===id);if(!r)return;
   if(r.rider_id!==SESSION.user.id){alert('Maps è disponibile solo al runner che ha preso la richiesta.');return}
+  let pending=runnerPendingPickups();
+  if(pending.length){
+    let stops=runnerOrderPickupStops(runnerUniquePickupStops(pending));
+    if(!stops.length){alert('Coordinate dei ritiri non disponibili.');return}
+    let last=stops[stops.length-1],url=`https://www.google.com/maps/dir/?api=1&destination=${last.lat},${last.lng}&travelmode=driving`;
+    if(stops.length>1){let waypoints=stops.slice(0,-1).map(x=>`${x.lat},${x.lng}`).join('|');url+=`&waypoints=${encodeURIComponent(waypoints)}`}
+    window.open(url,'_blank','noopener');return
+  }
   let target=runnerMapsTarget(r);if(!target||!Number.isFinite(target.lat)||!Number.isFinite(target.lng)){alert('Coordinate non disponibili per questa tappa.');return}
   let url=`https://www.google.com/maps/dir/?api=1&destination=${target.lat},${target.lng}&travelmode=driving`;
   window.open(url,'_blank','noopener')
