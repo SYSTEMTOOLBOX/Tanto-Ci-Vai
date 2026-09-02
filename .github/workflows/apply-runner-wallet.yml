@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply_runner_wallet.py
+      - scripts/runner_wallet.trigger
 
 permissions:
   contents: write
