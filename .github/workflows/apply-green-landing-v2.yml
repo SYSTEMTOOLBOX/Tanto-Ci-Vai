@@ -1,0 +1,32 @@
+name: Apply green landing redesign
+
+on:
+  push:
+    paths:
+      - 'scripts/apply_green_landing_v2.py'
+      - '.github/workflows/apply-green-landing-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply green landing redesign
+        run: python scripts/apply_green_landing_v2.py
+      - name: Commit redesigned landing
+        run: |
+          if git diff --quiet -- presentazione.html; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add presentazione.html
+          git commit -m "Redesign landing with green local impact [skip ci]"
+          git push
