@@ -1,0 +1,31 @@
+name: Apply saved home and community help UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/apply_home_and_help_v1.py
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/apply_home_and_help_v1.py
+      - name: Commit generated patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add saved home, address search and community help [skip ci]"
+          git push
