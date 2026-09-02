@@ -288,7 +288,9 @@ function missionButtons(r){
   let label=next==='ritirata'?'📦 Ritirato':next==='in_consegna'?'Parto per consegna':next==='consegnata'?'Segna consegnata':'';
   if(!next)return '';
   let action=next==='ritirata'?`openPickupEta('${r.id}')`:`setStatus('${r.id}','${next}')`;
-  return `<div class="rowbtn"><button class="btn outline" onclick="openRunnerNavigation('${r.id}')">🧭 Navigatore</button><button class="btn primary" onclick="${action}">${label}</button></div>`
+  let goingToPickup=r.stato==='accettata';
+  let mapsLabel=goingToPickup?'📍 VAI AL RITIRO CON MAPS':'🏠 VAI ALLA CONSEGNA CON MAPS';
+  return `<button class="btn teal full" style="margin-top:11px;padding:15px;font-size:12px" onclick="openRunnerMapsStage('${r.id}')">${mapsLabel}</button><div class="rowbtn"><button class="btn outline" onclick="openRunnerNavigation('${r.id}')">🗺️ Mappa Tanto Ci Vai</button><button class="btn primary" onclick="${action}">${label}</button></div>`
 }
 function localDateTimeValue(d){
   let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,16)
@@ -744,7 +746,7 @@ function stopLiveNavigation(){
 function openRoutePlanner(){
   if(!SELECTED_PLACE)return;
   stopLiveNavigation();
-  openSheet(`${head('PERCORSO SMART',SELECTED_PLACE.name,'Scegli come vuoi muoverti. Il percorso parte dalla tua posizione GPS reale.')}<div class="pharmacy-location">💊 <b>${esc(SELECTED_PLACE.name)}</b><br>${esc(SELECTED_PLACE.address||'Farmacia selezionata')}</div><div class="nav-modes"><button id="mode-car" class="nav-mode on" onclick="calculateSmartRoute('car')">🚗 Auto</button><button id="mode-foot" class="nav-mode" onclick="calculateSmartRoute('foot')">🚶 A piedi</button><button id="mode-bike" class="nav-mode" onclick="calculateSmartRoute('bike')">🚲 Bici</button></div><div id="smartRouteStatus" class="notice green">📍 Rilevo la posizione e preparo il percorso…</div><div id="smartRouteMap" class="route-map"></div><div id="routeSummary"></div><div id="routeSteps" class="nav-steps"></div><div id="liveNavStatus" class="nav-live">GPS pronto. Premi Avvia navigazione per seguire la tua posizione sulla mappa.</div><div class="nav-actions"><button id="liveNavBtn" class="btn primary" onclick="toggleLiveNavigation()">▶ Avvia navigazione</button><button class="btn outline" onclick="openExternalNavigation()">↗ Apri in Maps</button></div><button class="btn teal full" style="margin-top:9px" onclick="stopLiveNavigation();openNewRequest(2)">✓ Usa questa farmacia</button>`);
+  openSheet(`${head('PERCORSO SMART',SELECTED_PLACE.name,'Scegli come vuoi muoverti. Il percorso parte dalla tua posizione GPS reale.')}<div class="pharmacy-location">💊 <b>${esc(SELECTED_PLACE.name)}</b><br>${esc(SELECTED_PLACE.address||'Farmacia selezionata')}</div><div class="nav-modes"><button id="mode-car" class="nav-mode on" onclick="calculateSmartRoute('car')">🚗 Auto</button><button id="mode-foot" class="nav-mode" onclick="calculateSmartRoute('foot')">🚶 A piedi</button><button id="mode-bike" class="nav-mode" onclick="calculateSmartRoute('bike')">🚲 Bici</button></div><div id="smartRouteStatus" class="notice green">📍 Rilevo la posizione e preparo il percorso…</div><div id="smartRouteMap" class="route-map"></div><div id="routeSummary"></div><div id="routeSteps" class="nav-steps"></div><div id="liveNavStatus" class="nav-live">GPS pronto. Premi Avvia navigazione per seguire la tua posizione sulla mappa.</div><div class="nav-actions"><button id="liveNavBtn" class="btn primary" onclick="toggleLiveNavigation()">▶ Avvia navigazione</button><button class="btn outline" onclick="openExternalNavigation()">↗ Apri questa tappa in Maps</button></div><button class="btn teal full" style="margin-top:9px" onclick="stopLiveNavigation();openNewRequest(2)">✓ Usa questa farmacia</button>`);
   calculateSmartRoute('car')
 }
 async function fetchSmartRoute(start,end,mode){
@@ -835,10 +837,24 @@ async function calculateRunnerRoute(mode){
     if(st)st.innerHTML='✓ Percorso pronto: <b>tu → ritiro → consegna</b>.'
   }catch(e){if(st)st.textContent='Errore percorso: '+e.message}
 }
+function runnerMapsTarget(r){
+  if(!r)return null;
+  if(r.stato==='accettata')return {lat:+r.ritiro_lat,lng:+r.ritiro_lng,label:'ritiro'};
+  if(['ritirata','in_consegna'].includes(r.stato))return {lat:+r.consegna_lat,lng:+r.consegna_lng,label:'consegna'};
+  return null
+}
+function openRunnerMapsStage(id){
+  let r=REQUESTS.find(x=>x.id===id);if(!r)return;
+  if(r.rider_id!==SESSION.user.id){alert('Maps è disponibile solo al runner che ha preso la richiesta.');return}
+  let target=runnerMapsTarget(r);if(!target||!Number.isFinite(target.lat)||!Number.isFinite(target.lng)){alert('Coordinate non disponibili per questa tappa.');return}
+  let url=`https://www.google.com/maps/dir/?api=1&destination=${target.lat},${target.lng}&travelmode=driving`;
+  window.open(url,'_blank','noopener')
+}
 function openRunnerExternalNavigation(){
   let r=NAV_REQUEST;if(!r)return;
+  let target=runnerMapsTarget(r);if(!target||!Number.isFinite(target.lat)||!Number.isFinite(target.lng)){alert('Coordinate non disponibili per questa tappa.');return}
   let mode=NAV_MODE==='car'?'driving':NAV_MODE==='foot'?'walking':'bicycling';
-  let url=`https://www.google.com/maps/dir/?api=1&destination=${r.consegna_lat},${r.consegna_lng}&waypoints=${r.ritiro_lat},${r.ritiro_lng}&travelmode=${mode}`;
+  let url=`https://www.google.com/maps/dir/?api=1&destination=${target.lat},${target.lng}&travelmode=${mode}`;
   window.open(url,'_blank','noopener')
 }
 function photonFeatureToPoint(f){
