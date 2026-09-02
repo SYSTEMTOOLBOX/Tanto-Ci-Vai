@@ -1,0 +1,32 @@
+name: Apply Pacco and Altro request flows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/apply_pacco_altro.py
+      - scripts/pacco_altro.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/apply_pacco_altro.py
+      - name: Commit Pacco and Altro UI
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add Pacco and Altro GPS request flows [skip ci]"
+          git push
