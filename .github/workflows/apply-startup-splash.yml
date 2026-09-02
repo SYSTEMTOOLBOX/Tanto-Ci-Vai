@@ -18,12 +18,21 @@ jobs:
         with:
           python-version: '3.12'
       - name: Rebuild splash assets
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p assets
-          cat scripts/splash_assets/video.b64.* | base64 -d > assets/tcv-welcome-5_5s.mp4
-          cat scripts/splash_assets/logo.b64.* | base64 -d > assets/tcv-splash-logo.jpg
+          : > assets/tcv-welcome-5_5s.mp4
+          for f in scripts/splash_assets/video.b64.*; do
+            base64 -d "$f" >> assets/tcv-welcome-5_5s.mp4
+          done
+          : > assets/tcv-splash-logo.jpg
+          for f in scripts/splash_assets/logo.b64.*; do
+            base64 -d "$f" >> assets/tcv-splash-logo.jpg
+          done
           test -s assets/tcv-welcome-5_5s.mp4
           test -s assets/tcv-splash-logo.jpg
+          file assets/tcv-welcome-5_5s.mp4 assets/tcv-splash-logo.jpg
       - name: Patch app
         run: python scripts/apply_startup_splash.py
       - name: Commit startup splash
