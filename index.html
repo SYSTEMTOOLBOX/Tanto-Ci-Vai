@@ -388,6 +388,59 @@ async function togglePickupMap(){
   setTimeout(()=>PICKUP_MAP?.invalidateSize(),120)
 }
 /* PACCO_ALTRO_V1 */
+/* FINDER_MANUAL_MAP_V1 */
+function manualFinderContext(kind='shop'){
+  let isPharmacy=kind==='pharmacy';
+  let typed=(document.getElementById(isPharmacy?'pharmacyNameSearch':'shopNameSearch')?.value||'').trim();
+  let town=(document.getElementById(isPharmacy?'pharmacyTown':'shopTown')?.value||SEARCH_POS?.area||SEARCH_POS?.city||'').trim();
+  return {kind,isPharmacy,typed,town,center:SEARCH_POS};
+}
+function openFinderManualMap(kind='shop'){
+  document.activeElement?.blur?.();
+  let ctx=manualFinderContext(kind),center=ctx.center;
+  if(!center?.lat||!center?.lng){
+    alert('Prima cerca il paese o la frazione, così posso centrare la mappa nella zona giusta.');
+    return;
+  }
+  if(SHOP_MAP){try{SHOP_MAP.remove()}catch(e){}SHOP_MAP=null}
+  if(PHARMACY_MAP){try{PHARMACY_MAP.remove()}catch(e){}PHARMACY_MAP=null}
+  resetPickupMap();PICKUP_POINT=null;SELECTED_PLACE=null;
+  let placeLabel=ctx.typed||(ctx.isPharmacy?'Farmacia':'Punto di ritiro');
+  let title=ctx.town?`Indica il punto a ${ctx.town}`:'Indica il punto esatto';
+  openSheet(`${head('PUNTO NON PRESENTE SULLA MAPPA',title,'Non serve che il negozio sia registrato: tocca semplicemente il punto esatto sulla mappa.')}<div class="notice green" style="margin-top:10px"><b>${esc(placeLabel)}</b><br>👆 Tocca il punto corretto. Puoi trascinare il pin se vuoi aggiustarlo.</div><div id="finderManualMap" class="route-map" style="height:390px;min-height:340px"></div><div id="finderManualStatus" class="notice yellow">Nessun punto scelto.</div><button id="finderManualConfirm" class="btn teal full" style="margin-top:10px" disabled onclick="confirmFinderManualPoint()">✓ Usa questo punto di ritiro</button><button class="btn outline full" style="margin-top:8px" onclick="resetPickupMap();openNewRequest(1)">← Cambia tipo richiesta</button>`);
+  window.__tcvManualFinder={...ctx,placeLabel};
+  setTimeout(()=>initFinderManualMap(center),80)
+}
+function initFinderManualMap(center){
+  let el=document.getElementById('finderManualMap');if(!el)return;
+  resetPickupMap();
+  PICKUP_MAP=L.map('finderManualMap').setView([center.lat,center.lng],15);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(PICKUP_MAP);
+  L.circleMarker([center.lat,center.lng],{radius:8,weight:3,fillOpacity:.8}).addTo(PICKUP_MAP).bindPopup('Centro zona cercata');
+  PICKUP_MAP.on('click',e=>setFinderManualPoint(e.latlng.lat,e.latlng.lng));
+  setTimeout(()=>PICKUP_MAP?.invalidateSize(),120)
+}
+async function setFinderManualPoint(lat,lng){
+  let st=document.getElementById('finderManualStatus');if(st)st.textContent='Recupero la via del punto scelto…';
+  let rev=await reverseGeocodePoint({lat:Number(lat),lng:Number(lng)});
+  PICKUP_POINT={lat:Number(lat),lng:Number(lng),name:window.__tcvManualFinder?.placeLabel||'Punto di ritiro',addressNoNumber:rev.addressNoNumber||rev.label||'',address:rev.addressNoNumber||rev.label||'',housenumber:rev.housenumber||'',city:rev.city||'',street:rev.street||'',source:'manual-finder-map'};
+  if(PICKUP_MAP){
+    if(!PICKUP_MARKER)PICKUP_MARKER=L.marker([lat,lng],{draggable:true}).addTo(PICKUP_MAP);
+    else PICKUP_MARKER.setLatLng([lat,lng]);
+    PICKUP_MARKER.off('dragend');
+    PICKUP_MARKER.on('dragend',e=>{let ll=e.target.getLatLng();setFinderManualPoint(ll.lat,ll.lng)});
+    PICKUP_MAP.setView([lat,lng],17)
+  }
+  if(st)st.innerHTML=`✓ Punto scelto${PICKUP_POINT.addressNoNumber?` · <b>${esc(PICKUP_POINT.addressNoNumber)}</b>`:''}. Il runner verrà a queste coordinate esatte.`;
+  let btn=document.getElementById('finderManualConfirm');if(btn)btn.disabled=false
+}
+function confirmFinderManualPoint(){
+  if(!PICKUP_POINT){alert('Tocca prima il punto esatto sulla mappa.');return}
+  let ctx=window.__tcvManualFinder||{},name=ctx.placeLabel||'Punto di ritiro';
+  SELECTED_PLACE={...PICKUP_POINT,name,addressNoNumber:PICKUP_POINT.addressNoNumber||PICKUP_POINT.address||name,address:PICKUP_POINT.address||PICKUP_POINT.addressNoNumber||name};
+  resetPickupMap();
+  openNewRequest(2)
+}
 function chooseRequestCategory(cat){
   REQUEST_CATEGORY=cat;
   SELECTED_PLACE=null;PICKUP_POINT=null;resetPickupMap();
@@ -494,7 +547,7 @@ async function loadPharmaciesAt(pos){
 }
 async function openPharmacyFinder(){
   REQUEST_CATEGORY='farmacia';SELECTED_PLACE=null;SEARCH_POS=null;HOME_POS=null;
-  openSheet(`${head('FARMACIE VICINE','Dove devo cercare?','Puoi essere anche lontanissimo dalla persona che stai aiutando: scegli il GPS oppure scrivi la sua città o frazione.')}<button class="gpsbtn" onclick="searchPharmaciesByGps()">📍 Usa la posizione GPS di questo telefono</button><div class="place-fallback"><input id="pharmacyTown" placeholder="Oppure scrivi città o frazione · es. Lauriano Po"><button class="btn outline" onclick="searchPharmaciesByText()">Cerca</button></div><div id="pharmacyStatus" class="pharmacy-location">Raggio di ricerca: 15 km dalla posizione scelta.</div><div id="pharmacyMap" class="place-map hidden"></div><div id="pharmacyList" class="place-list"></div>`)
+  openSheet(`${head('FARMACIE VICINE','Dove devo cercare?','Puoi essere anche lontanissimo dalla persona che stai aiutando: scegli il GPS oppure scrivi la sua città o frazione.')}<button class="gpsbtn" onclick="searchPharmaciesByGps()">📍 Usa la posizione GPS di questo telefono</button><div class="place-fallback"><input id="pharmacyTown" placeholder="Oppure scrivi città o frazione · es. Lauriano Po"><button class="btn outline" onclick="searchPharmaciesByText()">Cerca</button></div><div id="pharmacyStatus" class="pharmacy-location">Raggio di ricerca: 15 km dalla posizione scelta.</div><div id="pharmacyMap" class="place-map hidden"></div><div id="pharmacyList" class="place-list"></div><button class="btn teal full" style="margin-top:10px" onclick="openFinderManualMap('pharmacy')">🗺️ Farmacia mancante o spostata · INDICA SULLA MAPPA</button>`)
 }
 async function searchPharmaciesByGps(){
   let st=document.getElementById('pharmacyStatus');if(st)st.textContent='Rilevo il GPS…';
@@ -555,7 +608,7 @@ function visibleShopResults(){
 }
 function renderShopList(){
   let el=document.getElementById('shopList');if(!el)return;let rows=visibleShopResults();
-  el.innerHTML=rows.length?rows.map(p=>{let i=SHOP_RESULTS.indexOf(p);return `<button type="button" class="place-card" onclick="selectShop(${i})"><div><b>${esc(p.name)}</b><small>${esc(shopTypeLabel(p.shop))} · ${esc(p.address)}${p.housenumber?` · N. ${esc(p.housenumber)}`:''}</small></div><span class="place-distance">${p.distance.toFixed(1)} km</span></button>`}).join(''):'<div class="notice yellow">Nessun negozio trovato con questo filtro. Prova “Tutti” oppure cambia zona.</div>'
+  el.innerHTML=rows.length?rows.map(p=>{let i=SHOP_RESULTS.indexOf(p);return `<button type="button" class="place-card" onclick="selectShop(${i})"><div><b>${esc(p.name)}</b><small>${esc(shopTypeLabel(p.shop))} · ${esc(p.address)}${p.housenumber?` · N. ${esc(p.housenumber)}`:''}</small></div><span class="place-distance">${p.distance.toFixed(1)} km</span></button>`}).join(''):'<div class="notice yellow">Non compare nei nostri dati. Va bene lo stesso: premi <b>INDICA SULLA MAPPA</b> qui sotto e scegli il punto esatto.</div>'
 }
 function initShopMap(pos){
   if(SHOP_MAP){SHOP_MAP.remove();SHOP_MAP=null}
@@ -595,7 +648,7 @@ function openShopFinder(category='spesa'){
     search:'Es. negozio, attività, punto di ritiro…',manual:'Non trovo il punto · inserisco manualmente'
   };
   const filters=isSpesa?`<div class="delivery-tools" style="margin-top:10px"><button id="shop-filter-supermarket" class="nav-mode on" onclick="setShopFilter('supermarket')">🛒 Supermercati</button><button id="shop-filter-food" class="nav-mode" onclick="setShopFilter('food')">🥖 Alimentari</button><button id="shop-filter-hardware" class="nav-mode" onclick="setShopFilter('hardware')">🔧 Ferramenta</button><button id="shop-filter-all" class="nav-mode" onclick="setShopFilter('all')">🏪 Tutti</button></div>`:'';
-  openSheet(`${head(cfg.kicker,cfg.title,cfg.desc)}<button class="gpsbtn" onclick="searchShopsByGps()">📍 Usa la posizione GPS di questo telefono</button><div class="place-fallback"><input id="shopTown" placeholder="Oppure scrivi città o frazione · es. Cavagnolo"><button class="btn outline" onclick="searchShopsByText()">Cerca</button></div>${filters}<div id="shopStatus" class="pharmacy-location">Raggio di ricerca: 15 km dalla posizione scelta.</div><div id="shopMap" class="place-map hidden"></div><div class="field"><label>CERCA TRA I RISULTATI</label><input id="shopNameSearch" placeholder="${cfg.search}" oninput="renderShopList()"></div><div id="shopList" class="place-list"></div><button class="btn outline full" style="margin-top:10px" onclick="SELECTED_PLACE=null;openNewRequest(2)">${cfg.manual}</button>`)
+  openSheet(`${head(cfg.kicker,cfg.title,cfg.desc)}<button class="gpsbtn" onclick="searchShopsByGps()">📍 Usa la posizione GPS di questo telefono</button><div class="place-fallback"><input id="shopTown" placeholder="Oppure scrivi città o frazione · es. Cavagnolo"><button class="btn outline" onclick="searchShopsByText()">Cerca</button></div>${filters}<div id="shopStatus" class="pharmacy-location">Raggio di ricerca: 15 km dalla posizione scelta.</div><div id="shopMap" class="place-map hidden"></div><div class="field"><label>CERCA TRA I RISULTATI</label><input id="shopNameSearch" placeholder="${cfg.search}" oninput="renderShopList()"></div><div id="shopList" class="place-list"></div><button class="btn teal full" style="margin-top:10px" onclick="openFinderManualMap('shop')">🗺️ Non lo trovo · INDICA SULLA MAPPA</button>`)
 }
 async function searchShopsByGps(){
   let st=document.getElementById('shopStatus');if(st)st.textContent='Rilevo il GPS…';
