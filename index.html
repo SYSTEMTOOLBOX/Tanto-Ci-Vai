@@ -252,7 +252,7 @@ textarea{min-height:110px}
 const SUPABASE_URL='https://qdsphfmcibrveygkmyex.supabase.co';
 const SUPABASE_KEY='sb_publishable_Ltkh4jRJnihqwzhUCNYPYg_WN47PO13';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,MAP_PLAN_IDS=[],MAP_PLAN_START=null,MAP_PLAN_ROUTE=null,MAP_PLAN_ROUTE_LAYER=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SHOP_MAP=null,SHOP_RESULTS=[],SHOP_FILTER='supermarket',SELECTED_PLACE=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null,WALLET_ENTRIES=[],WALLET_YEAR_ROW=null;
+let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,MAP_PLAN_IDS=[],MAP_PLAN_START=null,MAP_PLAN_ROUTE=null,MAP_PLAN_ROUTE_LAYER=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SHOP_MAP=null,SHOP_RESULTS=[],SHOP_FILTER='supermarket',SELECTED_PLACE=null,PICKUP_MAP=null,PICKUP_MARKER=null,PICKUP_POINT=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null,WALLET_ENTRIES=[],WALLET_YEAR_ROW=null;
 const euro=n=>'€ '+Number(n||0).toFixed(2).replace('.',',');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* ORDER_NUMBERS_V1 */
@@ -322,7 +322,8 @@ function openRequestDetails(id){
   openSheet(`${head('DETTAGLI RICHIESTA',r.numero_ordine!=null?`Ordine #${orderCode(r)} · ${r.titolo}`:r.titolo,'Prima di accettare vedi ritiro, consegna e tutte le note.')}${notes?`<div class="notice" style="margin-top:10px"><b>NOTE</b><br>${notes}</div>`:''}<div class="route"><div><small>1 · RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>2 · CONSEGNA</small><br>${esc(cleanDeliveryAddress(r.consegna_indirizzo))}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span><span class="pill">${esc(r.categoria||'commissione')}</span>${r.offerta_scade_il?`<span class="pill">${offerCountdown(r)}</span>`:``}${r.consegna_entro?`<span class="pill">⏰ Consegna entro ${formatDateTime(r.consegna_entro)}</span>`:''}</div>${action}`)
 }
 function openSheet(html){sc.innerHTML='<div class="handle"></div>'+html;ov.classList.remove('hidden');sheet.classList.remove('hidden');document.body.style.overflow='hidden'}
-function closeSheet(){ov.classList.add('hidden');sheet.classList.add('hidden');document.body.style.overflow=''}
+function resetPickupMap(){if(PICKUP_MAP){try{PICKUP_MAP.remove()}catch(e){}}PICKUP_MAP=null;PICKUP_MARKER=null}
+function closeSheet(){resetPickupMap();ov.classList.add('hidden');sheet.classList.add('hidden');document.body.style.overflow=''}
 function head(k,t,p=''){return `<div class="shead"><div><div class="k">${k}</div><h2>${t}</h2><p>${p}</p></div><button class="close" onclick="closeSheet()">×</button></div>`}
 let REQUEST_CATEGORY='spesa';
 function pickupAddressWithoutCivic(p){return String(p?.addressNoNumber||p?.address||p?.name||'').trim()}
@@ -331,10 +332,65 @@ function formatPickupAddress(base,civic){
   let parts=base.split(',');if(parts.length>1){let first=parts.shift().trim();return `${first} ${civic}, ${parts.join(',').trim()}`}
   return `${base} ${civic}`.trim()
 }
+/* PICKUP_PIN_MAP_V1 */
+function pickupTextChanged(){
+  PICKUP_POINT=null;
+  let el=document.getElementById('pickupPicked');if(el){el.classList.add('hidden');el.textContent=''}
+}
+function pickupStatus(message,ok=true){
+  let el=document.getElementById('pickupPicked');if(!el)return;
+  el.classList.remove('hidden');el.classList.toggle('delivery-picked',ok);el.textContent=message
+}
+async function setPickupPointFromCoords(lat,lng,source='map'){
+  let nrFromEl=document.getElementById('nrFrom'),nrNum=document.getElementById('nrPickupNumber');
+  let typed=(nrFromEl?.value||'').trim(),selectedName=SELECTED_PLACE?.name||'';
+  pickupStatus(source==='gps'?'Rilevo indirizzo dalla tua posizione…':'Rilevo l’indirizzo del punto scelto…');
+  let rev=await reverseGeocodePoint({lat:Number(lat),lng:Number(lng)});
+  let mapped=(rev.addressNoNumber||rev.label||'').trim();
+  let name=selectedName||typed||'Punto di ritiro';
+  if(SELECTED_PLACE&&mapped&&nrFromEl)nrFromEl.value=mapped;
+  else if(!typed&&mapped&&nrFromEl)nrFromEl.value=mapped;
+  if(nrNum&&rev.housenumber)nrNum.value=rev.housenumber;
+  PICKUP_POINT={lat:Number(lat),lng:Number(lng),name,addressNoNumber:mapped,address:mapped,housenumber:rev.housenumber||'',city:rev.city||'',street:rev.street||'',source};
+  if(PICKUP_MAP){
+    if(!PICKUP_MARKER)PICKUP_MARKER=L.marker([PICKUP_POINT.lat,PICKUP_POINT.lng],{draggable:true}).addTo(PICKUP_MAP);
+    else PICKUP_MARKER.setLatLng([PICKUP_POINT.lat,PICKUP_POINT.lng]);
+    PICKUP_MARKER.off('dragend');
+    PICKUP_MARKER.on('dragend',e=>{let ll=e.target.getLatLng();setPickupPointFromCoords(ll.lat,ll.lng,'map')});
+    PICKUP_MAP.setView([PICKUP_POINT.lat,PICKUP_POINT.lng],17)
+  }
+  pickupStatus(source==='gps'?'✓ Posizione GPS salvata. Il runner verrà esattamente qui.':'✓ Punto di ritiro salvato. Il runner userà questo pin anche se il negozio non compare sulla mappa.')
+}
+async function fillPickupWithGps(){
+  pickupStatus('Rilevo la posizione GPS…');
+  try{let pos=await currentPosition();await setPickupPointFromCoords(pos.lat,pos.lng,'gps')}
+  catch(e){pickupStatus('GPS non disponibile o non autorizzato. Puoi usare “Indica sulla mappa”.',false)}
+}
+async function togglePickupMap(){
+  let el=document.getElementById('pickupMap');if(!el)return;
+  if(PICKUP_MAP){resetPickupMap();el.classList.add('hidden');return}
+  el.classList.remove('hidden');
+  pickupStatus('Tocca sulla mappa il punto esatto del ritiro. Puoi anche trascinare il pin dopo averlo messo.');
+  let center=PICKUP_POINT||SEARCH_POS||SELECTED_PLACE||null;
+  if(!center?.lat){
+    let q=(document.getElementById('nrFrom')?.value||'').trim();
+    if(q){try{center=await geocode(q)}catch(e){}}
+  }
+  if(!center?.lat){try{center=await currentPosition()}catch(e){}}
+  if(!center?.lat){pickupStatus('Non riesco a centrare la mappa. Scrivi almeno il paese oppure usa “Sono qui”.',false);return}
+  PICKUP_MAP=L.map('pickupMap').setView([center.lat,center.lng],PICKUP_POINT?17:14);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(PICKUP_MAP);
+  if(PICKUP_POINT){
+    PICKUP_MARKER=L.marker([PICKUP_POINT.lat,PICKUP_POINT.lng],{draggable:true}).addTo(PICKUP_MAP);
+    PICKUP_MARKER.on('dragend',e=>{let ll=e.target.getLatLng();setPickupPointFromCoords(ll.lat,ll.lng,'map')})
+  }
+  PICKUP_MAP.on('click',e=>setPickupPointFromCoords(e.latlng.lat,e.latlng.lng,'map'));
+  setTimeout(()=>PICKUP_MAP?.invalidateSize(),120)
+}
 /* PACCO_ALTRO_V1 */
 function chooseRequestCategory(cat){
   REQUEST_CATEGORY=cat;
-  SELECTED_PLACE=null;
+  SELECTED_PLACE=null;PICKUP_POINT=null;resetPickupMap();
   if(cat==='farmacia'){openPharmacyFinder();return}
   if(cat==='spesa'){openShopFinder('spesa');return}
   if(cat==='pacco'||cat==='altro'){openShopFinder(cat);return}
@@ -349,12 +405,13 @@ function openNewRequest(step=1){
       ['altro','🤝','Altro','GPS o città/frazione · commissione locale']
     ].map(x=>`<button class="choice" onclick="chooseRequestCategory('${x[0]}')"><span class="em">${x[1]}</span><b>${x[2]}</b><small>${x[3]}</small></button>`).join('')}</div>`);return
   }
+  resetPickupMap();PICKUP_POINT=SELECTED_PLACE?.lat!=null&&SELECTED_PLACE?.lng!=null?{...SELECTED_PLACE,source:'poi'}:null;
   const presets={spesa:['Ritirare una spesa','Es. cosa ritirare, nominativo, dettagli utili'],farmacia:['Ritiro in farmacia','Es. Ordine n. 123, prenotazione a nome Mario, oppure prodotto da ritirare'],pacco:['Ritirare un pacco','Es. pacco, documento, codice di ritiro, nominativo o dettagli utili'],altro:['Piccola commissione','Descrivi cosa bisogna fare']};
   let pr=presets[REQUEST_CATEGORY]||presets.altro;
   let detailLabel=REQUEST_CATEGORY==='farmacia'?'ORDINE / PRENOTAZIONE / COSA RITIRARE':REQUEST_CATEGORY==='spesa'?'LISTA SPESA / COSA COMPRARE / NOTE':REQUEST_CATEGORY==='pacco'?'PACCO / DOCUMENTO / CODICE RITIRO / NOTE':'COSA BISOGNA FARE / NOTE PER IL RUNNER';
   let fromValue=SELECTED_PLACE?pickupAddressWithoutCivic(SELECTED_PLACE):'';let pickupCivic=SELECTED_PLACE?.housenumber||'';let showPickupCivic=['farmacia','spesa','pacco','altro'].includes(REQUEST_CATEGORY);
   let pharmacyNote=SELECTED_PLACE?`<div class="pharmacy-location">${REQUEST_CATEGORY==='farmacia'?'💊':REQUEST_CATEGORY==='pacco'?'📦':REQUEST_CATEGORY==='altro'?'📍':'🏪'} <b>${esc(SELECTED_PLACE.name)}</b><br>${esc(pickupAddressWithoutCivic(SELECTED_PLACE))}${SELECTED_PLACE.housenumber?` · <b>N. ${esc(SELECTED_PLACE.housenumber)}</b>`:''}${Number.isFinite(SELECTED_PLACE.distance)?` · ${SELECTED_PLACE.distance.toFixed(1)} km dalla zona cercata`:''}</div>`:'';
-  openSheet(`${head('NUOVA RICHIESTA',pr[0],'Il runner vedrà chiaramente persona, ritiro, note e indirizzo finale.')}${pharmacyNote}<div class="kind" style="display:inline-block;margin-top:10px">${REQUEST_CATEGORY.toUpperCase()}</div><div class="field"><label>PER CHI È LA COMMISSIONE?</label><input id="nrPerson" placeholder="Es. Signora Maria"></div><div class="field"><label>TITOLO</label><input id="nrTitle" value="${pr[0]}"></div><div class="field"><label>${detailLabel}</label><textarea id="nrDesc" rows="3" placeholder="${pr[1]}"></textarea></div><div class="field"><label>DOVE RITIRARE · VIA / LUOGO</label><input id="nrFrom" value="${esc(fromValue)}" placeholder="Via o luogo, senza numero civico" ${SELECTED_PLACE?'readonly':''}></div>${showPickupCivic?`<div class="field"><label>NUMERO CIVICO</label><input id="nrPickupNumber" value="${esc(pickupCivic)}" placeholder="Es. 12/A" inputmode="text"><div class="notice" style="margin-top:7px">Il numero resta separato dalla via per evitare indirizzi confusi.</div></div>`:''}<div class="delivery-smart"><div class="delivery-smart-title">📍 DOVE VA CONSEGNATO?</div><div class="field autocomplete-wrap"><label>CITTÀ / FRAZIONE</label><input id="nrCity" value="" placeholder="Es. Lauriano" autocomplete="off" oninput="deliveryCityChanged()"><div id="deliveryCitySuggest" class="autocomplete-box"></div></div><div class="field autocomplete-wrap"><label>VIA</label><input id="nrStreet" value="" placeholder="Es. Via Anselmina" autocomplete="off" oninput="deliveryStreetChanged()"><div id="deliveryStreetSuggest" class="autocomplete-box"></div></div><div class="field"><label>NUMERO CIVICO</label><input id="nrCivic" value="" placeholder="Es. 14/A" autocomplete="off" inputmode="text" oninput="deliveryCivicChanged()"><div class="notice" style="margin-top:7px">Mappa e GPS compilano il civico automaticamente quando disponibile.</div></div><div class="delivery-tools"><button type="button" class="btn outline" onclick="toggleDeliveryMap()">🗺️ Scegli sulla mappa</button><button type="button" class="btn outline" onclick="fillDeliveryWithGps()">📍 Usa GPS</button></div><div id="deliveryMap" class="delivery-map hidden"></div><div id="deliveryPicked" class="delivery-picked hidden"></div></div><div class="field"><label>PER QUANTO RESTA ATTIVA L'OFFERTA?</label><select id="nrOfferHours"><option value="2">2 ore</option><option value="3" selected>3 ore</option><option value="4">4 ore</option></select><div class="notice" style="margin-top:7px">⏳ Se nessun runner la accetta entro questo tempo, l'offerta scade automaticamente.</div></div><div class="field"><label>CONSEGNA ENTRO (MASSIMO)</label><input id="nrDeadline" type="datetime-local" value="${localDateTimeValue(new Date(Date.now()+4*60*60000))}" min="${localDateTimeValue(new Date(Date.now()+15*60000))}"><div class="notice yellow" style="margin-top:7px">⏰ Il runner vedrà questo limite <b>prima di accettare</b> la richiesta.</div></div><div class="field"><label>COMPENSO RIDER</label><select id="nrPay"><option value="3.5">€ 3,50</option><option value="4" selected>€ 4,00</option><option value="5">€ 5,00</option><option value="6">€ 6,00</option></select></div><div id="nrStatus" class="notice green">Il navigatore sarà disponibile al runner dopo che avrà preso la richiesta: posizione runner → ritiro → consegna.</div><div class="backrow"><button class="btn outline" onclick="openNewRequest(1)">← Tipo</button><button class="btn teal" onclick="publishRequest()">Pubblica richiesta</button></div>`)
+  openSheet(`${head('NUOVA RICHIESTA',pr[0],'Il runner vedrà chiaramente persona, ritiro, note e indirizzo finale.')}${pharmacyNote}<div class="kind" style="display:inline-block;margin-top:10px">${REQUEST_CATEGORY.toUpperCase()}</div><div class="field"><label>PER CHI È LA COMMISSIONE?</label><input id="nrPerson" placeholder="Es. Signora Maria"></div><div class="field"><label>TITOLO</label><input id="nrTitle" value="${pr[0]}"></div><div class="field"><label>${detailLabel}</label><textarea id="nrDesc" rows="3" placeholder="${pr[1]}"></textarea></div><div class="field"><label>DOVE RITIRARE · VIA / LUOGO</label><input id="nrFrom" value="${esc(fromValue)}" placeholder="Via o luogo, senza numero civico" oninput="pickupTextChanged()"></div>${showPickupCivic?`<div class="field"><label>NUMERO CIVICO</label><input id="nrPickupNumber" value="${esc(pickupCivic)}" placeholder="Es. 12/A" inputmode="text"><div class="notice" style="margin-top:7px">Il numero resta separato dalla via per evitare indirizzi confusi.</div></div>`:''}<div class="delivery-tools" style="margin-top:8px"><button type="button" class="btn outline" onclick="togglePickupMap()">🗺️ Indica sulla mappa</button><button type="button" class="btn outline" onclick="fillPickupWithGps()">📍 Sono qui</button></div><div class="notice green" style="margin-top:8px">Negozio mancante o spostato? Non importa: indica il punto esatto. Il navigatore userà il pin e non la vecchia scheda del negozio.</div><div id="pickupMap" class="delivery-map hidden"></div><div id="pickupPicked" class="delivery-picked hidden"></div><div class="delivery-smart"><div class="delivery-smart-title">📍 DOVE VA CONSEGNATO?</div><div class="field autocomplete-wrap"><label>CITTÀ / FRAZIONE</label><input id="nrCity" value="" placeholder="Es. Lauriano" autocomplete="off" oninput="deliveryCityChanged()"><div id="deliveryCitySuggest" class="autocomplete-box"></div></div><div class="field autocomplete-wrap"><label>VIA</label><input id="nrStreet" value="" placeholder="Es. Via Anselmina" autocomplete="off" oninput="deliveryStreetChanged()"><div id="deliveryStreetSuggest" class="autocomplete-box"></div></div><div class="field"><label>NUMERO CIVICO</label><input id="nrCivic" value="" placeholder="Es. 14/A" autocomplete="off" inputmode="text" oninput="deliveryCivicChanged()"><div class="notice" style="margin-top:7px">Mappa e GPS compilano il civico automaticamente quando disponibile.</div></div><div class="delivery-tools"><button type="button" class="btn outline" onclick="toggleDeliveryMap()">🗺️ Scegli sulla mappa</button><button type="button" class="btn outline" onclick="fillDeliveryWithGps()">📍 Usa GPS</button></div><div id="deliveryMap" class="delivery-map hidden"></div><div id="deliveryPicked" class="delivery-picked hidden"></div></div><div class="field"><label>PER QUANTO RESTA ATTIVA L'OFFERTA?</label><select id="nrOfferHours"><option value="2">2 ore</option><option value="3" selected>3 ore</option><option value="4">4 ore</option></select><div class="notice" style="margin-top:7px">⏳ Se nessun runner la accetta entro questo tempo, l'offerta scade automaticamente.</div></div><div class="field"><label>CONSEGNA ENTRO (MASSIMO)</label><input id="nrDeadline" type="datetime-local" value="${localDateTimeValue(new Date(Date.now()+4*60*60000))}" min="${localDateTimeValue(new Date(Date.now()+15*60000))}"><div class="notice yellow" style="margin-top:7px">⏰ Il runner vedrà questo limite <b>prima di accettare</b> la richiesta.</div></div><div class="field"><label>COMPENSO RIDER</label><select id="nrPay"><option value="3.5">€ 3,50</option><option value="4" selected>€ 4,00</option><option value="5">€ 5,00</option><option value="6">€ 6,00</option></select></div><div id="nrStatus" class="notice green">Il navigatore sarà disponibile al runner dopo che avrà preso la richiesta: posizione runner → ritiro → consegna.</div><div class="backrow"><button class="btn outline" onclick="openNewRequest(1)">← Tipo</button><button class="btn teal" onclick="publishRequest()">Pubblica richiesta</button></div>`)
 }
 function distanceKm(a,b){
   const R=6371,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
@@ -983,7 +1040,7 @@ async function publishRequest(){
   let deadline=new Date(deadlineValue);if(!Number.isFinite(deadline.getTime())||deadline.getTime()<Date.now()+15*60000){nrStatus.textContent='La consegna massima deve essere almeno 15 minuti nel futuro.';return}if(![2,3,4].includes(offerHours))offerHours=3;let offerExpires=new Date(Date.now()+offerHours*60*60000);if(offerExpires>=deadline)offerExpires=new Date(Math.max(Date.now()+15*60000,deadline.getTime()-5*60000));
   nrStatus.textContent='Verifico ritiro e destinazione…';
   try{
-    let pickupAddress=formatPickupAddress(from,pickupNumber),selectedPickup=['farmacia','spesa','pacco','altro'].includes(REQUEST_CATEGORY)&&SELECTED_PLACE;let a=selectedPickup?{lat:SELECTED_PLACE.lat,lng:SELECTED_PLACE.lng,label:`${SELECTED_PLACE.name} · ${pickupAddress}`}:await geocode(pickupAddress);
+    let pickupAddress=formatPickupAddress(from,pickupNumber),selectedPickup=PICKUP_POINT;let a;if(selectedPickup){let mappedAddress=formatPickupAddress(selectedPickup.addressNoNumber||selectedPickup.address||'',pickupNumber||selectedPickup.housenumber||'');let parts=[selectedPickup.name||'',mappedAddress||pickupAddress||from].map(x=>String(x||'').trim()).filter(Boolean);let unique=parts.filter((x,i,arr)=>arr.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);a={lat:selectedPickup.lat,lng:selectedPickup.lng,label:unique.join(' · ')||pickupAddress||from}}else a=await geocode(pickupAddress);
     let b=(HOME_POS&&HOME_POS.cityText===city&&HOME_POS.streetText===street)?HOME_POS:await geocodeDeliveryAddress(city,street);
     let fullDesc=`Per: ${person}${desc?`\nNote: ${desc}`:''}`;
     let deliveryLabel=canonicalDeliveryLabel(street,city);
