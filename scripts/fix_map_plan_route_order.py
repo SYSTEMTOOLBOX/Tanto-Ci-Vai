@@ -106,3 +106,4 @@ if s == original:
     raise SystemExit('No changes applied')
 p.write_text(s, encoding='utf-8')
 print('Smart map planner route order applied')
+# trigger: 2026-09-02 smart-route-v1
