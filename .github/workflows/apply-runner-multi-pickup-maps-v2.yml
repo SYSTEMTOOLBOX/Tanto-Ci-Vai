@@ -1,0 +1,36 @@
+name: Apply runner multi-pickup Maps
+
+on:
+  push:
+    paths:
+      - 'scripts/apply_runner_multi_pickup_maps_v2.py'
+      - '.github/workflows/apply-runner-multi-pickup-maps-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply multi-pickup Maps routing
+        run: python scripts/apply_runner_multi_pickup_maps_v2.py
+      - name: Commit app update
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Group runner pickup stops in Google Maps [skip ci]"
+          git push origin main
