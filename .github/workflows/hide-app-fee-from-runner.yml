@@ -1,0 +1,32 @@
+name: Hide app fee from runner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/hide_app_fee_from_runner.py
+      - scripts/.trigger_hide_app_fee
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/hide_app_fee_from_runner.py
+      - name: Commit generated patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Hide app fee from runner views [skip ci]"
+          git push
