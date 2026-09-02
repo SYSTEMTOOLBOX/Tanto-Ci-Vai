@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply_home_and_help_v1.py
+      - .github/workflows/apply-home-and-help-v1.yml
 
 permissions:
   contents: write
