@@ -37,14 +37,35 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data: delivery, error: deliveryErr } = await admin
-      .from('consegne')
-      .select('id,cliente_id,titolo,categoria,ritiro_indirizzo,consegna_indirizzo,compenso_rider,stato')
-      .eq('id', requestId)
-      .single();
+    // Leggiamo la richiesta con la sessione del mittente: la policy RLS
+    // consente al cliente di vedere subito la riga che ha appena creato.
+    // Un breve retry copre eventuali ritardi tra inserimento e invocazione.
+    let delivery: any = null;
+    let deliveryErr: any = null;
+    for (let attempt = 0; attempt < 3 && !delivery; attempt++) {
+      const result = await userClient
+        .from('consegne')
+        .select('id,cliente_id,titolo,categoria,ritiro_indirizzo,consegna_indirizzo,compenso_rider,stato')
+        .eq('id', requestId)
+        .eq('cliente_id', user.id)
+        .maybeSingle();
+      delivery = result.data;
+      deliveryErr = result.error;
+      if (!delivery && attempt < 2) await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+    }
 
-    if (deliveryErr || !delivery) return json({ error: 'Request not found' }, 404);
-    if (delivery.cliente_id !== user.id) return json({ error: 'Forbidden' }, 403);
+    if (deliveryErr) {
+      console.error('delivery lookup failed', {
+        requestId,
+        code: deliveryErr.code,
+        message: deliveryErr.message,
+      });
+      return json({ error: 'Request lookup failed' }, 500);
+    }
+    if (!delivery) {
+      console.error('delivery not found for authenticated sender', { requestId, userId: user.id });
+      return json({ error: 'Request not found' }, 404);
+    }
     if (delivery.stato !== 'disponibile') return json({ sent: 0, skipped: 'not_available' });
 
     const { data: vapidRows, error: vapidErr } = await admin.rpc('get_push_vapid_config_for_service');
@@ -62,8 +83,8 @@ Deno.serve(async (req) => {
     console.log('send-request-push', { requestId, recipientSubscriptions: subs?.length || 0 });
 
     const payload = JSON.stringify({
-      title: '🔔 Nuova richiesta · Tanto Ci Vai',
-      body: `${delivery.titolo} · € ${Number(delivery.compenso_rider || 0).toFixed(2).replace('.', ',')}`,
+      title: '🔔 Nuova richiesta di ritiro',
+      body: `${delivery.titolo} · ${delivery.ritiro_indirizzo} · € ${Number(delivery.compenso_rider || 0).toFixed(2).replace('.', ',')}`,
       request_id: delivery.id,
       url: `./?request=${encodeURIComponent(delivery.id)}`,
       tag: `tcv-request-${delivery.id}`,

@@ -1554,7 +1554,7 @@ function tcvMaybeOfferPush(){
   if(!SESSION||!('Notification' in window)||Notification.permission==='denied')return;
   let state='';try{state=localStorage.getItem('tcv_push_prompt_v1')||''}catch(e){}
   if(state)return;
-  openSheet(`${head('NOTIFICHE','Vuoi ricevere le nuove richieste?','Se accetti, il telefono ti avvisa con la normale notifica di sistema anche quando Tanto Ci Vai non è aperta.')}<div class="notice green" style="margin-top:10px">🔔 Puoi disattivarle in qualsiasi momento dal Profilo o dalle impostazioni del telefono.</div><div class="rowbtn" style="margin-top:10px"><button class="btn outline" onclick="localStorage.setItem('tcv_push_prompt_v1','later');closeSheet()">Non ora</button><button class="btn primary" onclick="tcvEnablePush(false).then(ok=>{if(ok)closeSheet()})">Attiva notifiche</button></div>`)
+  openSheet(`${head('NOTIFICHE','Vuoi ricevere le nuove richieste?','Se accetti, il telefono ti avvisa con suono e vibrazione, secondo le impostazioni del dispositivo, anche quando Tanto Ci Vai non è aperta.')}<div class="notice green" style="margin-top:10px">🔔 Puoi disattivarle in qualsiasi momento dal Profilo o dalle impostazioni del telefono.</div><div class="rowbtn" style="margin-top:10px"><button class="btn outline" onclick="localStorage.setItem('tcv_push_prompt_v1','later');closeSheet()">Non ora</button><button class="btn primary" onclick="tcvEnablePush(false).then(ok=>{if(ok)closeSheet()})">Attiva notifiche</button></div>`)
 }
 function tcvOpenRequestById(id){if(!id||!SESSION)return;let r=REQUESTS.find(x=>x.id===id);if(r)openRequestDetails(id)}
 function tcvOpenRequestFromUrl(){try{let u=new URL(location.href),id=u.searchParams.get('request');if(id){tcvOpenRequestById(id);u.searchParams.delete('request');history.replaceState({},'',u.pathname+u.search+u.hash)}}catch(e){}}
@@ -1563,7 +1563,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type=
 /* TCV_PWA_SHELL_V1 */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=2', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('./sw.js?v=3', { scope: './' }).catch(err => console.warn('SW registration failed', err));
   });
 }
 </script>

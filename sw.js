@@ -11,6 +11,9 @@ self.addEventListener('push',event=>{
     badge:'assets/tcv-splash-logo.jpg',
     tag:data.tag||'tcv-push',
     renotify:true,
+    silent:false,
+    requireInteraction:true,
+    timestamp:Date.now(),
     vibrate:[180,80,180],
     data:{url:data.url||'./',request_id:data.request_id||null}
   };
