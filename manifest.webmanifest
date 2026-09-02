@@ -1,0 +1,26 @@
+{
+  "name": "Tanto ci vai?",
+  "short_name": "Tanto ci vai?",
+  "description": "Consegne e commissioni di comunità, vicino a te.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0b66ff",
+  "icons": [
+    {
+      "src": "assets/tcv-splash-logo.jpg",
+      "sizes": "340x340",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/tcv-splash-logo.jpg",
+      "sizes": "340x340",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ]
+}
