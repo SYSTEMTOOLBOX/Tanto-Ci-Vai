@@ -1,0 +1,29 @@
+name: Apply PWA shell
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/run_pwa_shell.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch index for standalone PWA
+        run: python scripts/apply_pwa_shell.py
+      - name: Commit PWA shell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/run_pwa_shell.trigger
+          git add index.html manifest.webmanifest sw.js
+          git commit -m "Enable standalone home-screen PWA [skip ci]"
+          git push
