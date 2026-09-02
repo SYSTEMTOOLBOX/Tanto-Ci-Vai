@@ -76,3 +76,4 @@ s=s.replace("navigator.serviceWorker.register('./sw.js?v=1'", "navigator.service
 if s==original: raise SystemExit('No changes applied')
 p.write_text(s,encoding='utf-8')
 print('Push notifications patch applied')
+# workflow trigger v1
