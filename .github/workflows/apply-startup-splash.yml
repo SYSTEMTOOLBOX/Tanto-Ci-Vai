@@ -22,8 +22,28 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets
-          cat scripts/splash_assets/video.b64.* | tr -cd 'A-Za-z0-9+/=' | base64 -d -i > assets/tcv-welcome-5_5s.mp4
-          cat scripts/splash_assets/logo.b64.* | tr -cd 'A-Za-z0-9+/=' | base64 -d -i > assets/tcv-splash-logo.jpg
+          python - <<'PY'
+          from pathlib import Path
+          import base64, re
+
+          def rebuild(pattern, output):
+              chunks = sorted(Path('scripts/splash_assets').glob(pattern))
+              if not chunks:
+                  raise SystemExit(f'No chunks for {pattern}')
+              text = ''.join(p.read_text(encoding='utf-8', errors='ignore') for p in chunks)
+              # Keep only Base64 alphabet, remove any padding that may have been
+              # introduced inside individual chunks, then pad once at the end.
+              text = ''.join(re.findall(r'[A-Za-z0-9+/]', text))
+              text += '=' * (-len(text) % 4)
+              data = base64.b64decode(text, validate=False)
+              Path(output).write_bytes(data)
+              if not data:
+                  raise SystemExit(f'Empty rebuilt asset: {output}')
+              print(output, len(data), 'bytes')
+
+          rebuild('video.b64.*', 'assets/tcv-welcome-5_5s.mp4')
+          rebuild('logo.b64.*', 'assets/tcv-splash-logo.jpg')
+          PY
           test -s assets/tcv-welcome-5_5s.mp4
           test -s assets/tcv-splash-logo.jpg
           file assets/tcv-welcome-5_5s.mp4 assets/tcv-splash-logo.jpg
