@@ -22,14 +22,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p assets
-          : > assets/tcv-welcome-5_5s.mp4
-          for f in scripts/splash_assets/video.b64.*; do
-            base64 -d "$f" >> assets/tcv-welcome-5_5s.mp4
-          done
-          : > assets/tcv-splash-logo.jpg
-          for f in scripts/splash_assets/logo.b64.*; do
-            base64 -d "$f" >> assets/tcv-splash-logo.jpg
-          done
+          cat scripts/splash_assets/video.b64.* | tr -cd 'A-Za-z0-9+/=' | base64 -d -i > assets/tcv-welcome-5_5s.mp4
+          cat scripts/splash_assets/logo.b64.* | tr -cd 'A-Za-z0-9+/=' | base64 -d -i > assets/tcv-splash-logo.jpg
           test -s assets/tcv-welcome-5_5s.mp4
           test -s assets/tcv-splash-logo.jpg
           file assets/tcv-welcome-5_5s.mp4 assets/tcv-splash-logo.jpg
