@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b66ff">
+<link rel="manifest" href="manifest.webmanifest?v=1">
+<link rel="apple-touch-icon" href="assets/tcv-splash-logo.jpg?v=1">
+<meta name="application-name" content="Tanto ci vai?">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tanto ci vai?">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -1230,5 +1237,15 @@ function runStartupSplash(session){
 }
 
 </script>
+
+<script>
+/* TCV_PWA_SHELL_V1 */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js?v=1', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+  });
+}
+</script>
+
 </body>
 </html>
