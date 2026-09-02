@@ -204,6 +204,17 @@ textarea{min-height:110px}
 @keyframes tcvSuccessPop{from{opacity:0;transform:translateY(22px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes tcvCheck{0%{transform:scale(.45) rotate(-12deg);opacity:0}70%{transform:scale(1.12) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0)}}
 
+
+/* STARTUP_SPLASH_V1 */
+.tcv-app-splash{position:fixed;inset:0;z-index:15000;background:#fff;display:grid;place-items:center;overflow:hidden;animation:tcvSplashIn .18s ease-out}
+.tcv-app-splash.fade{animation:tcvSplashOut .22s ease-in forwards}
+.tcv-app-splash video{width:100%;height:100%;object-fit:contain;background:#fff}
+.tcv-app-splash-logo{width:min(82vw,430px);max-width:430px;max-height:72vh;object-fit:contain;filter:drop-shadow(0 14px 30px rgba(19,61,117,.10));animation:tcvLogoHello .9s ease both}
+.tcv-splash-skip{position:absolute;right:18px;top:max(18px,env(safe-area-inset-top));min-height:44px;padding:10px 15px;border:1px solid rgba(15,43,82,.13);border-radius:999px;background:rgba(255,255,255,.88);color:#15345f;font-size:15px;font-weight:900;box-shadow:0 8px 20px rgba(18,51,92,.10);backdrop-filter:blur(10px)}
+@keyframes tcvSplashIn{from{opacity:0}to{opacity:1}}
+@keyframes tcvSplashOut{from{opacity:1}to{opacity:0}}
+@keyframes tcvLogoHello{0%{opacity:0;transform:scale(.91)}55%{opacity:1;transform:scale(1.025)}100%{opacity:1;transform:scale(1)}}
+
 </style>
 </head>
 <body>
@@ -235,8 +246,8 @@ function offerCountdown(r){
   return h?`⏳ Scade tra ${h}h${m?` ${m}m`:''}`:`⏳ Scade tra ${m}m`
 }
 function setAuthMode(m){AUTH_MODE=m;loginTab.classList.toggle('on',m==='login');signupTab.classList.toggle('on',m==='signup');signupFields.classList.toggle('hidden',m!=='signup');authBtn.textContent=m==='login'?'Accedi':'Crea profilo';authStatus.textContent=m==='login'?'Accedi con email e password.':'Il nome e il telefono verranno salvati nel tuo profilo.'}
-async function submitAuth(){let email=authEmail.value.trim(),password=authPassword.value;if(!email||password.length<6){authStatus.textContent='Inserisci una email valida e una password di almeno 6 caratteri.';return}authBtn.disabled=true;try{if(AUTH_MODE==='signup'){let nome=authName.value.trim(),telefono=authPhone.value.trim();if(!nome){authStatus.textContent='Inserisci il nome.';return}let {data,error}=await db.auth.signUp({email,password,options:{data:{nome,telefono},emailRedirectTo:location.origin+location.pathname}});if(error)throw error;if(!data.session){authStatus.textContent='Registrazione creata. Controlla la tua email e conferma il link, poi torna qui e accedi.';return}await afterLogin(data.session)}else{let {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;await afterLogin(data.session)}}catch(e){authStatus.textContent='Errore: '+e.message}finally{authBtn.disabled=false}}
-async function afterLogin(session){SESSION=session;authView.classList.add('hidden');appView.classList.remove('hidden');bottomNav.classList.remove('hidden');await ensureProfile();await loadRequests();subscribeRealtime();renderAll();if(!window.__tcvOfferTick)window.__tcvOfferTick=setInterval(()=>{if(SESSION)renderAll()},60000)}
+async function submitAuth(){let email=authEmail.value.trim(),password=authPassword.value;if(!email||password.length<6){authStatus.textContent='Inserisci una email valida e una password di almeno 6 caratteri.';return}authBtn.disabled=true;try{if(AUTH_MODE==='signup'){let nome=authName.value.trim(),telefono=authPhone.value.trim();if(!nome){authStatus.textContent='Inserisci il nome.';return}let {data,error}=await db.auth.signUp({email,password,options:{data:{nome,telefono},emailRedirectTo:location.origin+location.pathname}});if(error)throw error;try{localStorage.setItem('tcv_intro_pending_v1',email.toLowerCase())}catch(e){}if(!data.session){authStatus.textContent='Registrazione creata. Controlla la tua email e conferma il link, poi torna qui e accedi.';return}await afterLogin(data.session)}else{let {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;await afterLogin(data.session)}}catch(e){authStatus.textContent='Errore: '+e.message}finally{authBtn.disabled=false}}
+async function afterLogin(session){SESSION=session;authView.classList.add('hidden');appView.classList.remove('hidden');bottomNav.classList.remove('hidden');let splashPromise=runStartupSplash(session);await ensureProfile();await loadRequests();subscribeRealtime();renderAll();if(!window.__tcvOfferTick)window.__tcvOfferTick=setInterval(()=>{if(SESSION)renderAll()},60000);await splashPromise}
 async function ensureProfile(){let uid=SESSION.user.id;let {data}=await db.from('profiles').select('*').eq('id',uid).maybeSingle();if(!data){let meta=SESSION.user.user_metadata||{};await db.from('profiles').insert({id:uid,nome:meta.nome||'',telefono:meta.telefono||''});({data}=await db.from('profiles').select('*').eq('id',uid).maybeSingle())}PROFILE=data||{id:uid,nome:'Utente',telefono:''};let initials=(PROFILE.nome||'TC').split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();avatar.textContent=initials||'TC';userLabel.textContent=PROFILE.nome||SESSION.user.email}
 async function loadRequests(){feedStatus.textContent='Aggiorno…';try{await db.rpc('scadi_offerte')}catch(e){}let {data,error}=await db.from('consegne').select('*').order('created_at',{ascending:false});if(error){feedStatus.textContent='Errore sync';throw error}REQUESTS=data||[];feedStatus.textContent='Sincronizzate'}
 function subscribeRealtime(){if(CHANNEL)db.removeChannel(CHANNEL);CHANNEL=db.channel('tcv-consegne').on('postgres_changes',{event:'*',schema:'public',table:'consegne'},async()=>{syncBadge.textContent='● SYNC';await loadRequests();renderAll();setTimeout(()=>syncBadge.textContent='● ONLINE',700)}).subscribe()}
@@ -1172,6 +1183,50 @@ function showRequestPublishedSuccess(){
   wrap.innerHTML=`<div class="tcv-success-card" role="dialog" aria-modal="true" aria-labelledby="tcvSuccessTitle"><div class="tcv-success-check">✓</div><h2 id="tcvSuccessTitle">Richiesta pubblicata!</h2><p>Perfetto! La tua richiesta è ora visibile ai runner della zona.</p><button type="button" class="tcv-success-btn" onclick="closeRequestPublishedSuccess()">Perfetto</button></div>`;
   wrap.addEventListener('click',e=>{if(e.target===wrap)closeRequestPublishedSuccess()});
   document.body.appendChild(wrap);tcvSuccessTone();
+}
+
+
+/* STARTUP_SPLASH_V1 */
+const TCV_SPLASH_VIDEO='assets/tcv-welcome-5_5s.mp4?v=1';
+const TCV_SPLASH_LOGO='assets/tcv-splash-logo.jpg?v=1';
+function tcvIntroKey(session){return `tcv_intro_seen_v1_${session?.user?.id||'anon'}`}
+function tcvIsFreshRegistration(session){
+  try{
+    const pending=(localStorage.getItem('tcv_intro_pending_v1')||'').toLowerCase();
+    const email=(session?.user?.email||'').toLowerCase();
+    return !!pending&&pending===email&&!localStorage.getItem(tcvIntroKey(session));
+  }catch(e){return false}
+}
+function tcvMarkIntroSeen(session){
+  try{localStorage.setItem(tcvIntroKey(session),'1');localStorage.removeItem('tcv_intro_pending_v1')}catch(e){}
+}
+function tcvRemoveStartupSplash(){document.getElementById('tcvAppSplash')?.remove()}
+function tcvFadeAndRemove(wrap,resolve){
+  if(!wrap||wrap.dataset.done==='1')return;
+  wrap.dataset.done='1';wrap.classList.add('fade');
+  setTimeout(()=>{wrap.remove();resolve?.()},220)
+}
+function runStartupSplash(session){
+  tcvRemoveStartupSplash();
+  return new Promise(resolve=>{
+    const first=tcvIsFreshRegistration(session),wrap=document.createElement('div');
+    wrap.id='tcvAppSplash';wrap.className='tcv-app-splash';
+    if(first){
+      wrap.innerHTML=`<video id="tcvWelcomeVideo" src="${TCV_SPLASH_VIDEO}" autoplay muted playsinline preload="auto"></video><button type="button" class="tcv-splash-skip">Salta ›</button>`;
+      document.body.appendChild(wrap);
+      const video=wrap.querySelector('video');
+      const finish=()=>{tcvMarkIntroSeen(session);tcvFadeAndRemove(wrap,resolve)};
+      video.addEventListener('ended',finish,{once:true});
+      video.addEventListener('error',finish,{once:true});
+      wrap.addEventListener('click',finish,{once:true});
+      try{video.play()?.catch(()=>{})}catch(e){}
+      setTimeout(finish,6500);
+    }else{
+      wrap.innerHTML=`<img class="tcv-app-splash-logo" src="${TCV_SPLASH_LOGO}" alt="Tanto ci vai?">`;
+      document.body.appendChild(wrap);
+      setTimeout(()=>tcvFadeAndRemove(wrap,resolve),1000);
+    }
+  })
 }
 
 </script>
