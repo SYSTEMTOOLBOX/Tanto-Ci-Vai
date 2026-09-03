@@ -23,11 +23,6 @@ if old_load not in s:
 s = s.replace(old_load, new_load, 1)
 s = s.replace("}catch(e){COMMUNITY_ALERTS=[];renderHomeCommunityAlarm();", "}catch(e){COMMUNITY_ALERTS=[];MY_SOS=[];renderHomeCommunityAlarm();", 1)
 
-# Replace the "Le mie richieste" renderer with one that includes an explicit SOS management section.
-old_render = "function renderMyRequests(){let arr=REQUESTS.filter(r=>r.cliente_id===SESSION.user.id);myreq.innerHTML=`<div class=\"pagehead\"><div class=\"k\">RICHIESTE PUBBLICATE</div><h2>Le mie richieste</h2><p>Stato reale delle commissioni che hai inserito.</p></div>${arr.length?arr.map(card).join(''):'<div class=\"empty\">Non hai ancora pubblicato richieste.</div>'}` }"
-# Current source has no space before final brace; accept either form through regex.
-pat = re.compile(r"function renderMyRequests\(\)\{let arr=REQUESTS\.filter\(r=>r\.cliente_id===SESSION\.user\.id\);myreq\.innerHTML=`<div class=\\?\"pagehead\\?\">.*?</div>\$\{arr\.length\?arr\.map\(card\)\.join\(''\):'<div class=\\?\"empty\\?\">Non hai ancora pubblicato richieste\.</div>'\}`\}", re.S)
-
 replacement = r'''function tcvFindMySos(id){return MY_SOS.find(x=>String(x.id)===String(id))||COMMUNITY_ALERTS.find(x=>String(x.id)===String(id)&&x.is_owner)}
 function tcvMySosCard(a){
   const closed=!!a.owner_closed_at,resolved=!!a.resolved_at&&!closed,active=!a.resolved_at&&!closed,where=String(a.location_label||'').trim(),count=Math.min(3,Number(a.resolution_count||0)),note=String(a.resolution_note||'').trim();
@@ -44,14 +39,12 @@ function renderMyRequests(){
   myreq.innerHTML=`<div class="pagehead"><div class="k">LE MIE ATTIVITÀ</div><h2>Le mie</h2><p>Qui gestisci i tuoi SOS e le richieste che hai pubblicato.</p></div>${renderMySosSection()}<div class="sect"><h2>Le mie richieste</h2><span>${arr.length}</span></div>${arr.length?arr.map(card).join(''):'<div class="empty">Non hai ancora pubblicato richieste.</div>'}`
 }'''
 
-# Use a simpler exact anchor if regex above is too strict.
 start = s.find('function renderMyRequests(){')
 end = s.find('function renderProfile(){', start)
 if start == -1 or end == -1:
     raise SystemExit('renderMyRequests anchors not found')
 s = s[:start] + replacement + '\n' + s[end:]
 
-# Replace the direct-delete owner action with a management flow and optional final note.
 start = s.find('async function tcvOwnerCloseSos(id){')
 end = s.find('function tcvFocusCommunityAlert(id){', start)
 if start == -1 or end == -1:
@@ -94,3 +87,4 @@ s = s.replace('</style>', css + '\n</style>', 1)
 
 p.write_text(s, encoding='utf-8')
 print('TCV_MY_SOS_MANAGEMENT_V1 applied')
+# trigger: workflow is installed before this commit
