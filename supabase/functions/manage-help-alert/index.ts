@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     const { data: alert, error: alertErr } = await admin
       .from('help_alerts')
-      .select('id,user_id,kind,status,resolution_count,resolved_at')
+      .select('id,user_id,kind,status,resolution_count,resolved_at,owner_closed_at,resolution_note')
       .eq('id', alertId)
       .maybeSingle();
     if (alertErr) throw alertErr;
@@ -45,13 +45,25 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'owner_close') {
-      if (alert.user_id !== user.id) return json({ error: 'Solo chi ha inviato il SOS può eliminarlo subito' }, 403);
-      const { error: delErr } = await admin.from('help_alerts').delete().eq('id', alertId).eq('user_id', user.id);
-      if (delErr) throw delErr;
-      return json({ deleted: true });
+      if (alert.user_id !== user.id) return json({ error: 'Solo chi ha inviato il SOS può chiuderlo' }, 403);
+      if (alert.owner_closed_at) {
+        return json({ closed: true, owner_closed_at: alert.owner_closed_at, resolution_note: alert.resolution_note || '' });
+      }
+      const note = String(body?.resolution_note || '').trim().slice(0, 400);
+      const now = new Date().toISOString();
+      const { data: closed, error: closeErr } = await admin
+        .from('help_alerts')
+        .update({ owner_closed_at: now, resolved_at: now, resolution_note: note })
+        .eq('id', alertId)
+        .eq('user_id', user.id)
+        .select('owner_closed_at,resolved_at,resolution_note')
+        .single();
+      if (closeErr) throw closeErr;
+      return json({ closed: true, ...closed });
     }
 
     if (action === 'vote_resolved') {
+      if (alert.owner_closed_at) return json({ error: 'Questo SOS è già stato chiuso da chi lo ha inviato' }, 409);
       if (alert.resolved_at) {
         return json({ voted: true, resolved: true, resolution_count: Number(alert.resolution_count || 3) });
       }
