@@ -1787,9 +1787,8 @@ function runStartupSplash(session){
       try{video.play()?.catch(()=>{})}catch(e){}
       setTimeout(finish,6500);
     }else{
-      wrap.innerHTML=`<img class="tcv-app-splash-logo" src="${TCV_SPLASH_LOGO}" alt="Tanto ci vai?">`;
-      document.body.appendChild(wrap);
-      setTimeout(()=>tcvFadeAndRemove(wrap,resolve),1000);
+      // Returning opens use only the native PWA splash to avoid a double logo.
+      resolve();
     }
   })
 }
@@ -1848,7 +1847,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type=
 /* TCV_PWA_SHELL_V1 */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=10', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('./sw.js?v=11', { scope: './' }).catch(err => console.warn('SW registration failed', err));
   });
 }
 
