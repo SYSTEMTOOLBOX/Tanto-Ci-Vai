@@ -8,8 +8,8 @@ self.addEventListener('push',event=>{
   const isHelp=data.event==='help_alert'||data.event==='hazard_alert';
   const options={
     body:data.body||'Hai una nuova richiesta.',
-    icon:'assets/tcv-splash-logo.jpg?v=2',
-    badge:'assets/tcv-splash-logo.jpg?v=2',
+    icon:'assets/tcv-splash-logo.jpg?v=3',
+    badge:'assets/tcv-splash-logo.jpg?v=3',
     tag:data.tag||'tcv-push',
     renotify:true,
     silent:false,
