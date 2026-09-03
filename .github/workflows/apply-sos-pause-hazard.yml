@@ -1,0 +1,32 @@
+name: Apply SOS pause and hazard reporting
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/apply_sos_pause_hazard.py
+      - .github/workflows/apply-sos-pause-hazard.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/apply_sos_pause_hazard.py
+      - name: Commit generated patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Pause SOS countdown and add hazard reporting [skip ci]"
+          git push
