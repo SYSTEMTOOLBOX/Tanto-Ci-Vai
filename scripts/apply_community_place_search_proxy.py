@@ -5,14 +5,36 @@ p = Path('community-routes.js')
 s = p.read_text(encoding='utf-8')
 
 # Keep the full point context (especially municipality) when the user picks a suggestion.
-s = re.sub(
-    r"  function featurePoint\(f\)\{const c=f\?\.geometry\?\.coordinates\|\|\[\];return \{lat:Number\(c\[1\]\),lng:Number\(c\[0\]\),label:featureLabel\(f\)\}\}\n",
-    """  function featurePoint(f){\n    const c=f?.geometry?.coordinates||[],p=f?.properties||{};\n    const town=p.city||p.town||p.village||p.municipality||p.locality||'';\n    return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f),town}\n  }\n  function tcvAddressLike(q){return /^(via|viale|vicolo|piazza|piazzale|p\\.?le|corso|strada|borgata|frazione|largo|localita|località)\\b/i.test(String(q||'').trim())}\n  function tcvTownNorm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]/g,'')}\n  function tcvTownFromPoint(pt){\n    if(pt?.town)return String(pt.town).trim();\n    const parts=String(pt?.label||'').split(',').map(x=>x.trim()).filter(Boolean);\n    if(parts.length>1&&tcvAddressLike(parts[0]))return parts[1];\n    return parts[0]||''\n  }\n  function tcvFeatureTown(f){const p=f?.properties||{};return p.city||p.town||p.village||p.municipality||p.locality||''}\n  function tcvPointDistanceKm(a,b){\n    if(!a||!b||!Number.isFinite(Number(a.lat))||!Number.isFinite(Number(a.lng))||!Number.isFinite(Number(b.lat))||!Number.isFinite(Number(b.lng)))return Infinity;\n    const R=6371,toRad=x=>Number(x)*Math.PI/180,dLat=toRad(Number(b.lat)-Number(a.lat)),dLng=toRad(Number(b.lng)-Number(a.lng));\n    const la1=toRad(a.lat),la2=toRad(b.lat),h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;\n    return 2*R*Math.asin(Math.sqrt(h))\n  }\n""",
-    s,
-    count=1
-)
+old_feature = "  function featurePoint(f){const c=f?.geometry?.coordinates||[];return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f)}}\n"
+new_feature = r'''  function featurePoint(f){
+    const c=f?.geometry?.coordinates||[],p=f?.properties||{};
+    const town=p.city||p.town||p.village||p.municipality||p.locality||'';
+    return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f),town}
+  }
+  function tcvAddressLike(q){return /^(via|viale|vicolo|piazza|piazzale|p\.?le|corso|strada|borgata|frazione|largo|localita|località)\b/i.test(String(q||'').trim())}
+  function tcvTownNorm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
+  function tcvTownFromPoint(pt){
+    if(pt?.town)return String(pt.town).trim();
+    const parts=String(pt?.label||'').split(',').map(x=>x.trim()).filter(Boolean);
+    if(parts.length>1&&tcvAddressLike(parts[0]))return parts[1];
+    return parts[0]||''
+  }
+  function tcvFeatureTown(f){const p=f?.properties||{};return p.city||p.town||p.village||p.municipality||p.locality||''}
+  function tcvPointDistanceKm(a,b){
+    if(!a||!b||!Number.isFinite(Number(a.lat))||!Number.isFinite(Number(a.lng))||!Number.isFinite(Number(b.lat))||!Number.isFinite(Number(b.lng)))return Infinity;
+    const R=6371,toRad=x=>Number(x)*Math.PI/180,dLat=toRad(Number(b.lat)-Number(a.lat)),dLng=toRad(Number(b.lng)-Number(a.lng));
+    const la1=toRad(a.lat),la2=toRad(b.lat),h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h))
+  }
+'''
+if old_feature in s:
+    s = s.replace(old_feature, new_feature, 1)
+elif 'function tcvTownFromPoint' not in s:
+    raise SystemExit('community featurePoint block not found')
 
 start_marker = "  async function photon(q,limit=6){"
+if start_marker not in s:
+    start_marker = "  async function photon(q,limit=6,anchor=null){"
 end_marker = "  async function reversePoint"
 start = s.find(start_marker)
 end = s.find(end_marker, start)
@@ -38,7 +60,6 @@ replacement = r'''  async function photon(q,limit=6,anchor=null){
     for(let attempt=0;attempt<searches.length;attempt++){
       const candidate=searches[attempt],isLocal=!!anchorTown&&attempt===0;
 
-      // 1) Same Nominatim helper already proven in Farmacia/Altro.
       try{
         if(typeof nominatimDeliverySearch==='function'){
           const ns=await nominatimDeliverySearch(candidate,Math.max(limit,8));
@@ -47,7 +68,6 @@ replacement = r'''  async function photon(q,limit=6,anchor=null){
         }
       }catch(e){console.warn('community nominatim app helper',e)}
 
-      // 2) Same Photon helper used by the rest of the app.
       try{
         if(typeof photonSearch==='function'){
           const fs=localFilter(await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(candidate)}&limit=${Math.max(limit,8)}`),isLocal);
@@ -55,7 +75,6 @@ replacement = r'''  async function photon(q,limit=6,anchor=null){
         }
       }catch(e){console.warn('community photon app helper',e)}
 
-      // 3) Direct Nominatim fallback.
       try{
         const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
         const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
@@ -70,7 +89,6 @@ replacement = r'''  async function photon(q,limit=6,anchor=null){
         }finally{if(timer)clearTimeout(timer)}
       }catch(e){console.warn('community nominatim direct',e)}
 
-      // 4) Supabase proxy fallback.
       try{
         if(typeof db!=='undefined'&&db?.functions?.invoke){
           const {data,error}=await db.functions.invoke('community-place-search',{body:{q:candidate,limit:Math.max(limit,8)}});
@@ -79,7 +97,6 @@ replacement = r'''  async function photon(q,limit=6,anchor=null){
         }
       }catch(e){console.warn('community place proxy',e)}
 
-      // 5) Direct Photon last fallback.
       try{
         const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
         const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
@@ -150,7 +167,6 @@ s = s[:start] + replacement + s[end:]
 
 p.write_text(s, encoding='utf-8')
 
-# Hard cache bust so Android/PWA gets the new municipality-aware autocomplete.
 idx = Path('index.html')
 html = idx.read_text(encoding='utf-8')
 html2 = re.sub(r'community-routes\.js\?v=\d+', 'community-routes.js?v=4', html, count=1)
