@@ -74,7 +74,7 @@ p.write_text(s, encoding='utf-8')
 
 idx = Path('index.html')
 html = idx.read_text(encoding='utf-8')
-html2 = re.sub(r'community-routes\\.js\\?v=\\d+', 'community-routes.js?v=7', html, count=1)
+html2 = re.sub(r'community-routes\.js\?v=\d+', 'community-routes.js?v=7', html, count=1)
 if html2 == html and 'community-routes.js?v=7' not in html:
     raise SystemExit('community-routes script tag not found')
 idx.write_text(html2, encoding='utf-8')
