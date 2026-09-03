@@ -1491,7 +1491,7 @@ async function acceptRequest(id){
   await tcvSendLifecyclePush(id,'accepted');
   await loadRequests();renderAll();closeSheet();page('missions')
 }
-async function setStatus(id,status){let before=status==='consegnata'?walletTrackedTotal():null;let {data,error}=await db.rpc('aggiorna_stato_consegna',{p_consegna_id:id,p_stato:status});if(error){alert(error.message);return}if(!data){alert('Operazione non consentita o stato già cambiato.');return}if(status==='ritirata')await tcvSendLifecyclePush(id,'picked_up');await loadRequests();if(status==='consegnata')await loadWallet();renderAll();if(status==='consegnata')tcvMaybeShowWalletMilestone(before,walletTrackedTotal())}
+async function setStatus(id,status){let before=status==='consegnata'?walletTrackedTotal():null;let {data,error}=await db.rpc('aggiorna_stato_consegna',{p_consegna_id:id,p_stato:status});if(error){alert(error.message);return}if(!data){alert('Operazione non consentita o stato già cambiato.');return}if(status==='ritirata')await tcvSendLifecyclePush(id,'picked_up');if(status==='consegnata')await tcvSendLifecyclePush(id,'delivered');await loadRequests();if(status==='consegnata')await loadWallet();renderAll();if(status==='consegnata')tcvMaybeShowWalletMilestone(before,walletTrackedTotal())}
 function page(p){['home','available','missions','myreq','mapPage','wallet','profile'].forEach(x=>{document.getElementById(x).classList.toggle('hidden',x!==p);document.querySelector(`[data-p="${x}"]`)?.classList.toggle('active',x===p)});if(p==='home')loadCommunityAlerts();if(p==='available')renderFeed();if(p==='missions')renderMissions();if(p==='myreq')renderMyRequests();if(p==='mapPage')renderMapPage();if(p==='wallet'){renderWallet();loadWallet().then(renderWallet).catch(e=>console.warn(e))}if(p==='profile')renderProfile();scrollTo(0,0)}
 function renderMissions(){let arr=REQUESTS.filter(r=>r.rider_id===SESSION.user.id&&r.stato!=='annullata');missions.innerHTML=`<div class="pagehead"><div class="k">LE TUE ATTIVITÀ</div><h2>Missioni</h2><p>Commissioni che hai accettato.</p></div>${walletMiniCard()}${arr.length?arr.map(card).join(''):'<div class="empty">Non hai ancora missioni assegnate.</div>'}`}
 function tcvFindMySos(id){return MY_SOS.find(x=>String(x.id)===String(id))||COMMUNITY_ALERTS.find(x=>String(x.id)===String(id)&&x.is_owner)}
@@ -2513,10 +2513,13 @@ async function tcvConfirmP2p(consegnaId,action){
   try{
     const {data,error}=await db.rpc('tcv_confirm_delivery_p2p_payment',{p_consegna_id:consegnaId,p_action:action});
     if(error)throw error;
+    if(action==='SENDER_PAID')await tcvSendLifecyclePush(consegnaId,'payment_sent');
+    if(action==='RIDER_RECEIVED')await tcvSendLifecyclePush(consegnaId,'payment_received');
     const p=await tcvLoadP2p(consegnaId);
     if(String(p.rider_id)===String(SESSION.user.id))await tcvOpenRiderP2p(consegnaId);else await tcvOpenClientP2p(consegnaId)
   }catch(e){alert('Conferma pagamento: '+(e?.message||e))}
 }
+/* TCV_PAYMENT_LIFECYCLE_PUSH_V2 */
 
 </script>
 
