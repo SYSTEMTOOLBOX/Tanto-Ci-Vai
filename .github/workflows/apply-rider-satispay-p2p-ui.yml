@@ -1,0 +1,34 @@
+name: Apply rider Satispay P2P UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply_rider_satispay_p2p_ui.py'
+      - '.github/workflows/apply-rider-satispay-p2p-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply rider Satispay patch
+        run: python scripts/apply_rider_satispay_p2p_ui.py
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo 'No changes'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Add direct rider Satispay payment flow [skip ci]'
+          git push
