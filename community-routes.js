@@ -64,24 +64,85 @@
   function featureSub(f){const p=f?.properties||{};return [p.postcode,p.county,p.country].filter(Boolean).join(' · ')}
   function featurePoint(f){const c=f?.geometry?.coordinates||[];return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f)}}
 
+  function tcvNominatimFeature(x){
+    const a=x?.address||{};
+    const city=a.city||a.town||a.village||a.municipality||a.hamlet||a.locality||'';
+    const street=a.road||a.pedestrian||a.residential||a.footway||a.path||'';
+    const name=x?.name||street||city||String(x?.display_name||'').split(',')[0]||'';
+    return {
+      type:'Feature',
+      properties:{
+        name,
+        street,
+        housenumber:a.house_number||'',
+        city,
+        town:a.town||'',
+        village:a.village||'',
+        locality:a.locality||a.suburb||a.neighbourhood||'',
+        county:a.county||'',
+        state:a.state||'',
+        postcode:a.postcode||'',
+        country:a.country||'Italia',
+        countrycode:'IT'
+      },
+      geometry:{type:'Point',coordinates:[Number(x?.lon),Number(x?.lat)]}
+    };
+  }
+
   async function photon(q,limit=6){
     const query=String(q||'').trim();if(query.length<2)return [];
-    // Prima passa dal proxy Supabase: evita i blocchi/limitazioni del browser mobile
-    // verso Photon e mantiene la ricerca identica su Android/PWA.
+
+    // Usa PRIMA gli stessi motori già collaudati nella compilazione Farmacia/Altro.
+    // Così Community non ha più un sistema di indirizzi diverso dal resto dell'app.
+    try{
+      if(typeof nominatimDeliverySearch==='function'){
+        const ns=await nominatimDeliverySearch(query,limit);
+        const fs=(Array.isArray(ns)?ns:[]).map(tcvNominatimFeature).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1]));
+        if(fs.length)return fs;
+      }
+    }catch(e){console.warn('community nominatim app helper',e)}
+
+    try{
+      if(typeof photonSearch==='function'){
+        const fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=${limit}`);
+        if(Array.isArray(fs)&&fs.length)return fs;
+      }
+    }catch(e){console.warn('community photon app helper',e)}
+
+    // Secondo fallback: Nominatim diretto, identico alla geocodifica già usata dall'app.
+    try{
+      const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+      const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
+      try{
+        const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=it&addressdetails=1&limit=${limit}&q=${encodeURIComponent(query)}`,
+          ctrl?{signal:ctrl.signal,headers:{'Accept-Language':'it'}}:{headers:{'Accept-Language':'it'}});
+        if(r.ok){
+          const ns=await r.json();
+          const fs=(Array.isArray(ns)?ns:[]).map(tcvNominatimFeature).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1]));
+          if(fs.length)return fs;
+        }
+      }finally{if(timer)clearTimeout(timer)}
+    }catch(e){console.warn('community nominatim direct',e)}
+
+    // Terzo fallback: proxy Supabase.
     try{
       if(typeof db!=='undefined'&&db?.functions?.invoke){
         const {data,error}=await db.functions.invoke('community-place-search',{body:{q:query,limit}});
-        if(!error&&Array.isArray(data?.features))return data.features;
+        if(!error&&Array.isArray(data?.features)&&data.features.length)return data.features;
       }
     }catch(e){console.warn('community place proxy',e)}
-    // Fallback diretto: se il proxy non è raggiungibile proviamo comunque Photon.
-    const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
-    const timer=ctrl?setTimeout(()=>ctrl.abort(),6500):null;
+
+    // Ultimo tentativo Photon diretto. Se anche questo non va, restituiamo [] e
+    // l'interfaccia invita a continuare a scrivere invece di mostrare un errore tecnico.
     try{
-      const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query+', Italia')}&limit=${limit}&lang=it`,ctrl?{signal:ctrl.signal}:undefined);
-      if(!r.ok)throw new Error('Ricerca luogo non disponibile');
-      const j=await r.json();return Array.isArray(j.features)?j.features:[]
-    }finally{if(timer)clearTimeout(timer)}
+      const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+      const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
+      try{
+        const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query+', Italia')}&limit=${limit}&lang=it`,ctrl?{signal:ctrl.signal}:undefined);
+        if(r.ok){const j=await r.json();if(Array.isArray(j.features))return j.features}
+      }finally{if(timer)clearTimeout(timer)}
+    }catch(e){console.warn('community photon direct',e)}
+    return [];
   }
   async function reversePoint(lat,lng){
     try{
@@ -112,12 +173,12 @@
         try{
           const fs=await photon(q,7);
           box.innerHTML=fs.length?fs.map((f,i)=>`<button type="button" class="tcv-autoitem" data-i="${i}"><b>${safe(featureLabel(f)||q)}</b><small>${safe(featureSub(f))}</small></button>`).join(''):'<div class="notice yellow">Nessun luogo trovato. Continua a scrivere oppure prova con via + comune.</div>';
-          box.querySelectorAll('button[data-i]').forEach(btn=>btn.addEventListener('click',()=>{
+          box.querySelectorAll('button[data-i]').forEach(btn=>btn.addEventListener('pointerdown',(ev)=>{ev.preventDefault();
             const f=fs[Number(btn.dataset.i)],p=featurePoint(f);if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))return;
             input.value=p.label||q;if(target==='trip')draft[key]=p;else rideDraft[key]=p;clearBox(boxId);
             if(target==='trip')tcvMaybeAutoPreview();else tcvMaybeRidePreview()
           }))
-        }catch(e){box.innerHTML=`<div class="notice yellow">${safe(e.message)}</div>`}
+        }catch(e){console.warn('community autocomplete',e);box.innerHTML='<div class="notice yellow">Ricerca momentaneamente lenta: continua a scrivere città, via o piazza.</div>'}
       },250)
     })
   }
