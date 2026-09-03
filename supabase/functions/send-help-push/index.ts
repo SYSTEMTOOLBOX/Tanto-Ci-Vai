@@ -53,24 +53,28 @@ async function dispatchAlert(admin: any, alertId: string, userId: string, sender
     const where = claimed.location_label
       ? ` · 📍 ${claimed.location_label}`
       : (hasPoint ? ` · 📍 ${Number(claimed.lat).toFixed(5)}, ${Number(claimed.lng).toFixed(5)}` : ' · posizione GPS non disponibile');
-    const defaultWhat = claimed.kind === 'other'
-      ? 'sta chiedendo aiuto per un’altra persona'
-      : (claimed.automatic ? 'ha attivato un SOS automatico' : 'ha bisogno urgente di aiuto');
+    const isHazard = claimed.kind === 'hazard';
+    const defaultWhat = isHazard
+      ? 'ha segnalato un possibile pericolo sulla strada'
+      : (claimed.kind === 'other'
+        ? 'sta chiedendo aiuto per un’altra persona'
+        : (claimed.automatic ? 'ha attivato un SOS automatico' : 'ha bisogno urgente di aiuto'));
     const what = String(claimed.message || '').trim() || defaultWhat;
-    const title = claimed.kind === 'other' ? '🆘 AIUTO PER UNA PERSONA' : '🆘 SOS · AIUTO SUBITO';
+    const title = isHazard ? '⚠️ PERICOLO SEGNALATO' : (claimed.kind === 'other' ? '🆘 AIUTO PER UNA PERSONA' : '🆘 SOS · AIUTO SUBITO');
     const mapUrl = hasPoint
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${claimed.lat},${claimed.lng}`)}`
       : './';
+    const suffix = isHazard ? ' Fai attenzione se passi in zona.' : ' Se è un’emergenza chiama il 112.';
     const payload = JSON.stringify({
       title,
-      body: `${senderName}: ${what}${where}. Se è un’emergenza chiama il 112.`,
-      event: 'help_alert',
+      body: `${senderName}: ${what}${where}.${suffix}`,
+      event: isHazard ? 'hazard_alert' : 'help_alert',
       help_id: claimed.id,
       help_kind: claimed.kind,
       lat: claimed.lat,
       lng: claimed.lng,
       url: mapUrl,
-      tag: `tcv-help-${claimed.id}`,
+      tag: `tcv-${isHazard ? 'hazard' : 'help'}-${claimed.id}`,
     });
 
     let sent = 0;
@@ -85,9 +89,9 @@ async function dispatchAlert(admin: any, alertId: string, userId: string, sender
         sent++;
       } catch (e) {
         failed++;
-        const status = Number(e?.statusCode || e?.status || 0);
+        const status = Number((e as any)?.statusCode || (e as any)?.status || 0);
         if (status === 404 || status === 410) await admin.from('push_subscriptions').delete().eq('id', s.id);
-        else console.error('help push failed', { subscriptionId: s.id, status, message: String(e?.message || e) });
+        else console.error('help push failed', { subscriptionId: s.id, status, message: String((e as any)?.message || e) });
       }
     }
 
@@ -99,7 +103,7 @@ async function dispatchAlert(admin: any, alertId: string, userId: string, sender
     }).eq('id', claimed.id);
 
     console.log('send-help-push complete', { alertId: claimed.id, sender: userId, sent, failed, kind: claimed.kind });
-    return { alert_id: claimed.id, sent, failed, location_included: hasPoint || !!claimed.location_label };
+    return { alert_id: claimed.id, sent, failed, location_included: hasPoint || !!claimed.location_label, kind: claimed.kind };
   } catch (e) {
     await admin.from('help_alerts').update({ status: 'pending' }).eq('id', alertId).eq('status', 'sending');
     throw e;
@@ -168,7 +172,7 @@ Deno.serve(async (req) => {
       const job = (async () => {
         await sleep(31_000);
         try { await dispatchAlert(admin, alert.id, user.id, senderName); }
-        catch (e) { console.error('automatic SOS dispatch failed', String(e?.message || e)); }
+        catch (e) { console.error('automatic SOS dispatch failed', String((e as any)?.message || e)); }
       })();
       // @ts-ignore Supabase Edge Runtime global
       EdgeRuntime.waitUntil(job);
@@ -225,6 +229,25 @@ Deno.serve(async (req) => {
       return json(result);
     }
 
+    if (action === 'hazard') {
+      if (lat == null || lng == null) return json({ error: 'Indica sulla mappa dove si trova il pericolo.' }, 400);
+      if (!message) return json({ error: 'Descrivi brevemente il pericolo.' }, 400);
+      const { data: alert, error: insertErr } = await admin.from('help_alerts').insert({
+        user_id: user.id,
+        message,
+        lat,
+        lng,
+        location_label: locationLabel || null,
+        kind: 'hazard',
+        automatic: false,
+        status: 'pending',
+        send_at: new Date().toISOString(),
+      }).select('id').single();
+      if (insertErr) throw insertErr;
+      const result = await dispatchAlert(admin, alert.id, user.id, senderName);
+      return json(result);
+    }
+
     if (action === 'send_now') {
       let alertId = String(body?.alert_id || '');
       if (alertId) {
@@ -254,7 +277,7 @@ Deno.serve(async (req) => {
 
     return json({ error: 'Unknown action' }, 400);
   } catch (e) {
-    console.error('send-help-push fatal', String(e?.message || e));
-    return json({ error: String(e?.message || e) }, 500);
+    console.error('send-help-push fatal', String((e as any)?.message || e));
+    return json({ error: String((e as any)?.message || e) }, 500);
   }
 });
