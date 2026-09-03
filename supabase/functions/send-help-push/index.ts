@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing) return json({ alert_id: existing.id, send_at: existing.send_at, reused: true });
 
-      const sendAt = new Date(Date.now() + 60_000).toISOString();
+      const sendAt = new Date(Date.now() + 30_000).toISOString();
       const { data: alert, error: insertErr } = await admin
         .from('help_alerts')
         .insert({
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
       if (insertErr) throw insertErr;
 
       const job = (async () => {
-        await sleep(61_000);
+        await sleep(31_000);
         try { await dispatchAlert(admin, alert.id, user.id, senderName); }
         catch (e) { console.error('automatic SOS dispatch failed', String(e?.message || e)); }
       })();
