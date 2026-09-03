@@ -5,6 +5,7 @@ self.addEventListener('push',event=>{
   let data={};
   try{data=event.data?event.data.json():{}}catch(e){data={title:'Tanto Ci Vai',body:event.data?.text()||'Hai una nuova notifica'}}
   const title=data.title||'Tanto Ci Vai';
+  const isHelp=data.event==='help_alert';
   const options={
     body:data.body||'Hai una nuova richiesta.',
     icon:'assets/tcv-splash-logo.jpg',
@@ -14,17 +15,30 @@ self.addEventListener('push',event=>{
     silent:false,
     requireInteraction:true,
     timestamp:Date.now(),
-    vibrate:[180,80,180],
-    data:{url:data.url||'./',request_id:data.request_id||null}
+    vibrate:isHelp?[400,140,400,140,700]:[180,80,180],
+    data:{
+      url:data.url||'./',
+      request_id:data.request_id||null,
+      event:data.event||null,
+      help_id:data.help_id||null,
+      help_kind:data.help_kind||null,
+      lat:data.lat??null,
+      lng:data.lng??null
+    }
   };
   event.waitUntil(self.registration.showNotification(title,options));
 });
 
 self.addEventListener('notificationclick',event=>{
   event.notification.close();
-  const url=event.notification.data?.url||'./';
-  const requestId=event.notification.data?.request_id||null;
+  const data=event.notification.data||{};
+  const url=data.url||'./';
+  const requestId=data.request_id||null;
   event.waitUntil((async()=>{
+    if(data.event==='help_alert'&&url&&url!=='./'){
+      if(self.clients.openWindow)await self.clients.openWindow(url);
+      return;
+    }
     const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});
     for(const client of list){
       try{
