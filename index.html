@@ -345,6 +345,15 @@ textarea{min-height:110px}
 .satispay-test-card{margin:18px 0 8px;padding:16px;border:2px solid #ef5b74;border-radius:22px;background:linear-gradient(145deg,#fff,#fff3f5);box-shadow:0 10px 26px rgba(190,39,68,.10)}
 .satispay-test-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.satispay-test-head b{font-size:17px;letter-spacing:-.025em}.satispay-test-badge{padding:6px 9px;border-radius:999px;background:#d92145;color:#fff;font-size:9px;font-weight:1000;letter-spacing:.08em}.satispay-test-card p{margin:7px 0 12px;color:#52647f;font-size:12px;line-height:1.45}.satispay-test-money{display:flex;align-items:end;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:15px;background:#fff;border:1px solid #f2ccd3;margin-bottom:10px}.satispay-test-money strong{font-size:25px}.satispay-test-money span{font-size:10px;font-weight:950;color:#b3203c}.satispay-test-pay{width:100%;min-height:54px;border:0;border-radius:15px;background:#d92145;color:#fff;font-size:14px;font-weight:1000;box-shadow:0 8px 20px rgba(217,33,69,.22)}.satispay-test-pay:disabled{opacity:.55}.satispay-test-check{width:100%;min-height:46px;margin-top:8px;border:1px solid #e9b6c0;border-radius:14px;background:#fff;color:#9f1833;font-size:12px;font-weight:950}.satispay-test-status{margin-top:9px;padding:9px 10px;border-radius:12px;background:#fff;border:1px solid #f0d6db;color:#6b4250;font-size:11px;line-height:1.4}.satispay-result{padding:18px 4px;text-align:center}.satispay-result .big{font-size:52px}.satispay-result h2{font-size:25px;margin:7px 0}.satispay-result p{font-size:13px;line-height:1.5;color:#52647f}.satispay-result.accepted h2{color:#168653}.satispay-result.cancelled h2{color:#b21324}.satispay-result.pending h2{color:#a16b00}
 
+
+/* TCV_RIDER_SATISPAY_P2P_UI_V1 */
+.satispay-profile-box{margin:10px 0;padding:13px;border:1px solid #f0ccd4;border-radius:16px;background:linear-gradient(145deg,#fff,#fff5f7)}
+.satispay-profile-box h3{margin:0 0 4px;font-size:15px}.satispay-profile-box p{margin:0 0 9px;color:#52647f;font-size:10px;line-height:1.45}
+.satispay-ready-row{display:flex;gap:9px;align-items:flex-start;padding:10px 11px;border:1px solid #f0d9de;background:#fff;border-radius:13px;font-size:10px;font-weight:850;line-height:1.35}.satispay-ready-row input{width:auto;margin:1px 0 0;transform:scale(1.12)}
+.satispay-personal-btn{margin-top:10px;background:linear-gradient(135deg,#e51d46,#ff4d29)!important;color:#fff!important;box-shadow:0 8px 19px rgba(213,32,68,.18)}
+.satispay-personal-sheet{text-align:center;padding:4px 1px 8px}.satispay-personal-sheet .heart{font-size:42px}.satispay-personal-sheet h2{font-size:24px;line-height:1.1;margin:6px 0}.satispay-personal-sheet>p{color:#52647f;font-size:12px;line-height:1.5;margin:5px 0 12px}
+.satispay-p2p-amount{font-size:42px;font-weight:1000;letter-spacing:-.045em;margin:8px 0;color:#151a2b}.satispay-p2p-detail{text-align:left;margin:10px 0;padding:12px;border:1px solid #e6eaf0;border-radius:15px;background:#f8faff}.satispay-p2p-detail small{display:block;color:#6c7891;font-size:8px;font-weight:950;letter-spacing:.08em}.satispay-p2p-detail strong{display:block;font-size:18px;margin-top:3px;word-break:break-word}.satispay-p2p-steps{text-align:left;margin:10px 0;padding:12px 13px;border-radius:15px;background:#fff8df;border:1px solid #ffe49a;color:#5f4b12;font-size:10px;line-height:1.55}.satispay-p2p-state{margin:10px 0;padding:11px;border-radius:14px;background:#f3f6fa;border:1px solid #e0e7ef;font-size:11px;font-weight:850;line-height:1.4}.satispay-p2p-state.ok{background:#effff7;border-color:#c9ecd9;color:#21684a}
+
 </style>
 </head>
 <body>
@@ -398,7 +407,7 @@ function card(r){
   let mine=r.cliente_id===SESSION.user.id,assigned=r.rider_id===SESSION.user.id;
   let expiredOffer=r.stato==='scaduta'||(r.stato==='disponibile'&&r.offerta_scade_il&&offerExpiresAt(r)<=Date.now()),statusLabel=expiredOffer?'scaduta':r.stato;
   let notes=esc(r.descrizione||'').replace(/\n/g,'<br>');
-  return `<article class="req"><div class="reqhead"><span class="kind ${mine?'mine':''}">${mine?'MIA RICHIESTA':assigned?'MISSIONE':'DISPONIBILE'}</span><div style="display:flex;align-items:center;gap:6px">${orderBadge(r)}<span class="dist">${esc(statusLabel)}</span></div></div><h3>${esc(r.titolo)}</h3>${notes?`<p>${notes}</p>`:''}<div class="route"><div><small>RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>CONSEGNA</small><br>${esc(cleanDeliveryAddress(r.consegna_indirizzo))}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span>${mine?`<span class="pill">Servizio app ${euro(r.commissione_app)}</span>`:``}${r.offerta_scade_il?`<span class="pill">${offerCountdown(r)}</span>`:``}${r.consegna_entro?`<span class="pill">⏰ Entro ${formatDateTime(r.consegna_entro)}</span>`:''}${r.consegna_prevista?`<span class="pill">🕒 Consegna prevista ${formatDateTime(r.consegna_prevista)}</span>`:''}</div>${!mine&&requestOpen(r)?`<div class="rowbtn"><button class="btn outline" onclick="openRequestDetails('${r.id}')">Apri richiesta</button><button class="btn teal" onclick="acceptRequest('${r.id}')">Tanto ci vai?</button></div>`:''}${assigned?missionButtons(r):''}${mine&&requestOpen(r)?`<button class="btn danger full" style="margin-top:10px" onclick="setStatus('${r.id}','annullata')">Annulla richiesta</button>`:''}</article>`
+  return `<article class="req"><div class="reqhead"><span class="kind ${mine?'mine':''}">${mine?'MIA RICHIESTA':assigned?'MISSIONE':'DISPONIBILE'}</span><div style="display:flex;align-items:center;gap:6px">${orderBadge(r)}<span class="dist">${esc(statusLabel)}</span></div></div><h3>${esc(r.titolo)}</h3>${notes?`<p>${notes}</p>`:''}<div class="route"><div><small>RITIRO</small><br>${esc(r.ritiro_indirizzo)}</div><div><small>CONSEGNA</small><br>${esc(cleanDeliveryAddress(r.consegna_indirizzo))}</div></div><div class="meta"><span class="pill money">Compenso ${euro(r.compenso_rider)}</span>${r.offerta_scade_il?`<span class="pill">${offerCountdown(r)}</span>`:``}${r.consegna_entro?`<span class="pill">⏰ Entro ${formatDateTime(r.consegna_entro)}</span>`:''}${r.consegna_prevista?`<span class="pill">🕒 Consegna prevista ${formatDateTime(r.consegna_prevista)}</span>`:''}</div>${!mine&&requestOpen(r)?`<div class="rowbtn"><button class="btn outline" onclick="openRequestDetails('${r.id}')">Apri richiesta</button><button class="btn teal" onclick="acceptRequest('${r.id}')">Tanto ci vai?</button></div>`:''}${assigned?missionButtons(r):''}${assigned&&r.stato==='consegnata'?tcvRiderP2pButton(r):''}${mine&&r.rider_id&&r.stato==='consegnata'?tcvClientP2pButton(r):''}${mine&&requestOpen(r)?`<button class="btn danger full" style="margin-top:10px" onclick="setStatus('${r.id}','annullata')">Annulla richiesta</button>`:''}</article>`
 }
 function runnerPendingPickups(){
   return REQUESTS.filter(x=>x.rider_id===SESSION.user.id&&x.stato==='accettata'&&Number.isFinite(+x.ritiro_lat)&&Number.isFinite(+x.ritiro_lng))
@@ -1506,7 +1515,7 @@ function renderMyRequests(){
   let arr=REQUESTS.filter(r=>r.cliente_id===SESSION.user.id);
   myreq.innerHTML=`<div class="pagehead"><div class="k">LE MIE ATTIVITÀ</div><h2>Le mie</h2><p>Qui gestisci i tuoi SOS e le richieste che hai pubblicato.</p></div>${renderMySosSection()}${renderMyRideSection()}<div class="sect"><h2>Le mie richieste</h2><span>${arr.length}</span></div>${arr.length?arr.map(card).join(''):'<div class="empty">Non hai ancora pubblicato richieste.</div>'}`
 }
-function renderProfile(){let pushState=tcvPushStatusText();profile.innerHTML=`<div class="pagehead"><div class="k">PROFILO</div><h2>${esc(PROFILE.nome||'Profilo')}</h2><p>${esc(SESSION.user.email||'')}</p></div>${walletMiniCard()}<div class="req"><div class="field"><label>NOME</label><input id="pfName" value="${esc(PROFILE.nome||'')}"></div><div class="field"><label>TELEFONO</label><input id="pfPhone" value="${esc(PROFILE.telefono||'')}"></div><button class="btn teal full" onclick="saveProfile()">Salva profilo</button><button class="btn outline full" style="margin-top:8px" onclick="logout()">Esci dall'account</button></div><div class="req" style="margin-top:10px"><h3>🔔 Notifiche attività</h3><p id="pushProfileStatus">${esc(pushState)}</p><button class="btn primary full" style="margin-top:9px" onclick="tcvEnablePush(true)">Attiva notifiche</button><button class="btn outline full" style="margin-top:7px" onclick="tcvDisablePush()">Disattiva su questo telefono</button></div><div class="req" style="margin-top:10px"><h3>↗ Condividi Tanto Ci Vai</h3><p>Invita una persona della tua zona a entrare nella rete della comunità.</p><button class="btn teal full" style="margin-top:9px" onclick="tcvShareApp()">Condividi app</button></div><div class="notice green" style="margin-top:10px">✓ Profilo, richieste e missioni sono salvati online in modo sicuro.</div>`}
+function renderProfile(){let pushState=tcvPushStatusText();profile.innerHTML=`<div class="pagehead"><div class="k">PROFILO</div><h2>${esc(PROFILE.nome||'Profilo')}</h2><p>${esc(SESSION.user.email||'')}</p></div>${walletMiniCard()}<div class="req"><div class="field"><label>NOME</label><input id="pfName" value="${esc(PROFILE.nome||'')}"></div><div class="field"><label>TELEFONO</label><input id="pfPhone" value="${esc(PROFILE.telefono||'')}"></div><div class="satispay-profile-box"><h3>❤️ Satispay personale del rider</h3><p>Il compenso della consegna viene inviato dal cliente direttamente al tuo Satispay personale. Tanto Ci Vai non incassa questi soldi.</p><div class="field"><label>NUMERO COLLEGATO A SATISPAY</label><input id="pfSatispayPhone" inputmode="tel" autocomplete="tel" placeholder="Es. 3331234567" value="${esc(PROFILE.satispay_phone||PROFILE.telefono||'')}"></div><label class="satispay-ready-row"><input id="pfSatispayReady" type="checkbox" ${PROFILE.satispay_ready?'checked':''}><span>Questo numero è attivo su Satispay e voglio usarlo per ricevere i compensi delle consegne.</span></label><div class="notice green" style="margin-top:8px">Beta: commissione Tanto Ci Vai <b>0 €</b>. I 0,50 € verranno gestiti separatamente solo più avanti.</div></div><button class="btn teal full" onclick="saveProfile()">Salva profilo</button><button class="btn outline full" style="margin-top:8px" onclick="logout()">Esci dall'account</button></div><div class="req" style="margin-top:10px"><h3>🔔 Notifiche attività</h3><p id="pushProfileStatus">${esc(pushState)}</p><button class="btn primary full" style="margin-top:9px" onclick="tcvEnablePush(true)">Attiva notifiche</button><button class="btn outline full" style="margin-top:7px" onclick="tcvDisablePush()">Disattiva su questo telefono</button></div><div class="req" style="margin-top:10px"><h3>↗ Condividi Tanto Ci Vai</h3><p>Invita una persona della tua zona a entrare nella rete della comunità.</p><button class="btn teal full" style="margin-top:9px" onclick="tcvShareApp()">Condividi app</button></div><div class="notice green" style="margin-top:10px">✓ Profilo, richieste e missioni sono salvati online in modo sicuro.</div>`}
 // TCV_SHARE_PROFILE_V1
 async function tcvShareApp(){
   const url=location.origin+location.pathname;
@@ -1517,7 +1526,15 @@ async function tcvShareApp(){
     prompt('Copia questo link:',url)
   }catch(e){if(e?.name!=='AbortError')console.warn('Share failed',e)}
 }
-async function saveProfile(){let nome=pfName.value.trim(),telefono=pfPhone.value.trim();let {error}=await db.from('profiles').update({nome,telefono}).eq('id',SESSION.user.id);if(error){alert(error.message);return}PROFILE={...PROFILE,nome,telefono};await ensureProfile();renderProfile();alert('Profilo salvato.')}
+async function saveProfile(){
+  let nome=document.getElementById('pfName')?.value.trim()||'',telefono=document.getElementById('pfPhone')?.value.trim()||'';
+  let satispay_phone=document.getElementById('pfSatispayPhone')?.value.trim()||'',satispay_ready=!!document.getElementById('pfSatispayReady')?.checked;
+  if(satispay_ready&&!satispay_phone){alert('Inserisci il numero collegato al tuo Satispay personale.');return}
+  let {error}=await db.from('profiles').update({nome,telefono,satispay_phone,satispay_ready}).eq('id',SESSION.user.id);
+  if(error){alert(error.message);return}
+  PROFILE={...PROFILE,nome,telefono,satispay_phone,satispay_ready};await ensureProfile();renderProfile();
+  alert(satispay_ready?'Profilo salvato. Satispay rider è pronto.':'Profilo salvato. Satispay rider non è ancora attivo.');
+}
 async function logout(){await db.auth.signOut();location.reload()}
 const WALLET_THRESHOLD=5000;
 function walletYear(){return new Date().getFullYear()}
@@ -2044,7 +2061,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type=
 /* TCV_PWA_SHELL_V1 */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=14', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('./sw.js?v=15', { scope: './' }).catch(err => console.warn('SW registration failed', err));
   });
 }
 
@@ -2446,6 +2463,60 @@ async function tcvHandleSatispayReturn(attempt=0){
 setTimeout(()=>{tcvMountSatispaySandbox();tcvHandleSatispayReturn()},500);
 window.addEventListener('pageshow',()=>{setTimeout(()=>{tcvMountSatispaySandbox();tcvHandleSatispayReturn()},250)});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){setTimeout(()=>{tcvMountSatispaySandbox();if(localStorage.getItem('tcv_satispay_payment_id'))tcvCheckSatispayTest(false)},500)}});
+
+
+/* TCV_RIDER_SATISPAY_P2P_UI_V1 */
+function tcvClientP2pButton(r){
+  return `<button class="btn full satispay-personal-btn" onclick="tcvOpenClientP2p('${r.id}')">❤️ PAGA IL RIDER CON SATISPAY</button>`
+}
+function tcvRiderP2pButton(r){
+  return `<button class="btn full satispay-personal-btn" onclick="tcvOpenRiderP2p('${r.id}')">❤️ PAGAMENTO SATISPAY</button>`
+}
+function tcvP2pMoney(unit){
+  return new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format((Number(unit)||0)/100)
+}
+async function tcvLoadP2p(consegnaId){
+  const {data,error}=await db.from('delivery_p2p_payments').select('consegna_id,cliente_id,rider_id,rider_display_name,rider_satispay_phone,amount_unit,currency,status,sender_confirmed_at,receiver_confirmed_at,platform_fee_unit,platform_fee_status').eq('consegna_id',consegnaId).maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error('Dati del pagamento rider non trovati.');
+  return data
+}
+async function tcvCopyP2p(text,label='Dato'){
+  try{await navigator.clipboard.writeText(String(text));alert(label+' copiato.')}catch(e){prompt('Copia questo valore:',String(text))}
+}
+function tcvP2pOrderLabel(id){
+  const r=REQUESTS.find(x=>String(x.id)===String(id));
+  return r&&r.numero_ordine!=null?`Ordine #${orderCode(r)}`:'Consegna Tanto Ci Vai'
+}
+async function tcvOpenClientP2p(consegnaId){
+  try{
+    const p=await tcvLoadP2p(consegnaId),amount=tcvP2pMoney(p.amount_unit),status=String(p.status||'AWAITING_PAYMENT').toUpperCase();
+    const sent=status==='SENDER_CONFIRMED'||status==='RECEIVED',received=status==='RECEIVED';
+    let state=received?'<div class="satispay-p2p-state ok">✅ Il rider ha confermato di aver ricevuto il pagamento.</div>':sent?'<div class="satispay-p2p-state">⏳ Hai confermato l’invio. Ora attendiamo la conferma del rider.</div>':'<div class="satispay-p2p-state">Da pagare direttamente al rider sul suo Satispay personale.</div>';
+    let action=received?'':sent?'':`<button class="btn primary full" style="margin-top:8px" onclick="tcvConfirmP2p('${consegnaId}','SENDER_PAID')">✅ HO INVIATO ${esc(amount)}</button>`;
+    openSheet(`<div class="satispay-personal-sheet"><div class="heart">❤️</div><h2>Paga direttamente ${esc(p.rider_display_name||'il rider')}</h2><p>${esc(tcvP2pOrderLabel(consegnaId))}. Il denaro non passa da Tanto Ci Vai.</p><div class="satispay-p2p-amount">${esc(amount)}</div><div class="satispay-p2p-detail"><small>NUMERO SATISPAY DEL RIDER</small><strong>${esc(p.rider_satispay_phone||'')}</strong></div><button class="btn outline full" onclick="tcvCopyP2p('${esc(String(p.rider_satispay_phone||'')).replace(/'/g,"\\'")}','Numero Satispay')">📋 COPIA NUMERO</button><div class="satispay-p2p-steps"><b>Come pagare:</b><br>1. Apri la tua app Satispay personale.<br>2. Vai su Contatti e cerca il numero qui sopra.<br>3. Invia esattamente <b>${esc(amount)}</b>.<br>4. Torna qui e premi “Ho inviato”.</div>${state}${action}<button class="btn outline full" style="margin-top:8px" onclick="closeSheet()">Chiudi</button></div>`)
+  }catch(e){alert('Pagamento rider: '+(e?.message||e))}
+}
+async function tcvOpenRiderP2p(consegnaId){
+  try{
+    const p=await tcvLoadP2p(consegnaId),amount=tcvP2pMoney(p.amount_unit),status=String(p.status||'AWAITING_PAYMENT').toUpperCase();
+    let state='',action='';
+    if(status==='RECEIVED')state='<div class="satispay-p2p-state ok">✅ Hai confermato la ricezione del pagamento.</div>';
+    else if(status==='SENDER_CONFIRMED'){
+      state=`<div class="satispay-p2p-state">💸 Il cliente ha dichiarato di aver inviato <b>${esc(amount)}</b>. Controlla il tuo Satispay personale prima di confermare.</div>`;
+      action=`<button class="btn teal full" style="margin-top:8px" onclick="tcvConfirmP2p('${consegnaId}','RIDER_RECEIVED')">✅ HO RICEVUTO ${esc(amount)}</button>`;
+    }else state=`<div class="satispay-p2p-state">⏳ Il cliente deve ancora confermare l’invio di <b>${esc(amount)}</b>.</div>`;
+    openSheet(`<div class="satispay-personal-sheet"><div class="heart">❤️</div><h2>Pagamento della consegna</h2><p>${esc(tcvP2pOrderLabel(consegnaId))}. Ricevi tutto direttamente sul tuo Satispay personale.</p><div class="satispay-p2p-amount">${esc(amount)}</div>${state}${action}<div class="notice green" style="margin-top:10px">Commissione app nella beta: <b>0 €</b>.</div><button class="btn outline full" style="margin-top:8px" onclick="closeSheet()">Chiudi</button></div>`)
+  }catch(e){alert('Pagamento rider: '+(e?.message||e))}
+}
+async function tcvConfirmP2p(consegnaId,action){
+  try{
+    const {data,error}=await db.rpc('tcv_confirm_delivery_p2p_payment',{p_consegna_id:consegnaId,p_action:action});
+    if(error)throw error;
+    const p=await tcvLoadP2p(consegnaId);
+    if(String(p.rider_id)===String(SESSION.user.id))await tcvOpenRiderP2p(consegnaId);else await tcvOpenClientP2p(consegnaId)
+  }catch(e){alert('Conferma pagamento: '+(e?.message||e))}
+}
 
 </script>
 
