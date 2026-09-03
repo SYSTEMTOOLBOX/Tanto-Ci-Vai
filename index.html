@@ -1651,7 +1651,7 @@ async function loadCommunityAlerts(){
   try{
     if(st)st.textContent='Aggiorno pericoli e richieste di aiuto…';
     const {data,error}=await db.functions.invoke('get-community-alerts',{body:{}});if(error)throw error;if(data?.error)throw new Error(data.error);
-    COMMUNITY_ALERTS=Array.isArray(data?.alerts)?data.alerts.filter(a=>Number.isFinite(+a.lat)&&Number.isFinite(+a.lng)):[];
+    COMMUNITY_ALERTS=Array.isArray(data?.alerts)?data.alerts:[];
     const hazards=COMMUNITY_ALERTS.filter(a=>a.kind==='hazard').length;
     const active=COMMUNITY_ALERTS.filter(a=>a.kind!=='hazard'&&!a.resolved_at).length;
     const resolved=COMMUNITY_ALERTS.filter(a=>a.kind!=='hazard'&&a.resolved_at).length;
@@ -1691,11 +1691,11 @@ function sosResolutionBars(n){n=Math.max(0,Math.min(3,Number(n||0)));return `<di
 function openCommunityAlertDetail(id){
   const a=COMMUNITY_ALERTS.find(x=>String(x.id)===String(id));if(!a)return;
   if(a.kind==='hazard'){openCommunityAlertMaps(a.lat,a.lng);return}
-  const resolved=!!a.resolved_at,count=Math.min(3,Number(a.resolution_count||0)),where=String(a.location_label||'').trim();
+  const resolved=!!a.resolved_at,count=Math.min(3,Number(a.resolution_count||0)),where=String(a.location_label||'').trim(),hasPoint=Number.isFinite(Number(a.lat))&&Number.isFinite(Number(a.lng));
   const state=`<div class="sos-detail-state ${resolved?'resolved':'active'}">${resolved?'✅ SOS RISOLTO':'🆘 SOS ATTIVO'} · ${count}/3 conferme</div>${sosResolutionBars(count)}`;
   const vote=resolved?'':`<button class="sos-resolve-btn" ${a.viewer_voted?'disabled':''} onclick="tcvVoteSosResolved('${a.id}')">${a.viewer_voted?'✓ HAI GIÀ SEGNALATO RISOLTO':'✓ SEGNALA SOS RISOLTO'}</button>`;
   const owner=a.is_owner?`<button class="sos-owner-close" onclick="tcvOwnerCloseSos('${a.id}')">✕ TOGLI IL MIO SOS SUBITO</button>`:'';
-  openSheet(`${head(resolved?'SOS RISOLTO':'ASSISTENZA IMMEDIATA',resolved?'✅ Situazione risolta':'🆘 Richiesta SOS',resolved?'Tre persone hanno confermato la risoluzione. Rimarrà verde per 24 ore.':'Serve assistenza: verifica la situazione prima di segnalarla come risolta.')}${state}<div class="notice" style="margin-top:10px"><b>${esc(a.message||'Richiesta urgente di aiuto')}</b>${where?`<br>📍 ${esc(where)}`:''}<br>Segnalato da ${esc(a.sender_name||'un utente')}</div><button class="btn primary full" style="margin-top:10px" onclick="openCommunityAlertMaps(${Number(a.lat)},${Number(a.lng)})">🧭 VAI AL PUNTO SOS</button>${vote}${owner}<button class="btn outline full" style="margin-top:8px" onclick="tcvFocusCommunityAlert('${a.id}')">⌖ VEDI SULLA MAPPA</button>`)
+  openSheet(`${head(resolved?'SOS RISOLTO':'ASSISTENZA IMMEDIATA',resolved?'✅ Situazione risolta':'🆘 Richiesta SOS',resolved?'Tre persone hanno confermato la risoluzione. Rimarrà verde per 24 ore.':'Serve assistenza: verifica la situazione prima di segnalarla come risolta.')}${state}<div class="notice" style="margin-top:10px"><b>${esc(a.message||'Richiesta urgente di aiuto')}</b>${where?`<br>📍 ${esc(where)}`:(hasPoint?'':'<br>📍 Posizione GPS non disponibile')}<br>Segnalato da ${esc(a.sender_name||'un utente')}</div>${hasPoint?`<button class="btn primary full" style="margin-top:10px" onclick="openCommunityAlertMaps(${Number(a.lat)},${Number(a.lng)})">🧭 VAI AL PUNTO SOS</button>`:''}${vote}${owner}${hasPoint?`<button class="btn outline full" style="margin-top:8px" onclick="tcvFocusCommunityAlert('${a.id}')">⌖ VEDI SULLA MAPPA</button>`:''}`)
 }
 async function tcvVoteSosResolved(id){
   try{
@@ -1724,7 +1724,7 @@ function renderMapPage(){
 function initMap(){
   if(MAP){MAP.remove();MAP=null}MAP_PLAN_ROUTE_LAYER=null;MAP=L.map('map').setView([45.18,7.99],11);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(MAP);let pts=[];
   REQUESTS.filter(r=>requestOpen(r)&&r.cliente_id!==SESSION.user.id&&r.ritiro_lat&&r.ritiro_lng).forEach(r=>{let ll=[r.ritiro_lat,r.ritiro_lng];pts.push(ll);let marker=L.marker(ll).addTo(MAP);let inPlan=MAP_PLAN_IDS.includes(r.id);marker.bindTooltip(`📦 ${inPlan?'✓ ':''}${esc(r.titolo)} · ${euro(r.compenso_rider)}`,{direction:'top'});marker.on('click',()=>openMapOffer(r.id))});
-  COMMUNITY_ALERTS.forEach(a=>{const ll=[Number(a.lat),Number(a.lng)];pts.push(ll);L.marker(ll,{icon:communityAlertIcon(a),zIndexOffset:a.kind==='hazard'?700:1000}).addTo(MAP).bindPopup(communityAlertPopup(a),{maxWidth:290})});
+  COMMUNITY_ALERTS.forEach(a=>{if(!Number.isFinite(Number(a.lat))||!Number.isFinite(Number(a.lng)))return;const ll=[Number(a.lat),Number(a.lng)];pts.push(ll);L.marker(ll,{icon:communityAlertIcon(a),zIndexOffset:a.kind==='hazard'?700:(a.resolved_at?850:1000)}).addTo(MAP).bindPopup(communityAlertPopup(a),{maxWidth:290})});
   if(USER_POS){L.circleMarker([USER_POS.lat,USER_POS.lng],{radius:8,weight:4,fillOpacity:.9}).addTo(MAP).bindPopup('La tua posizione')}
   if(pts.length&&!MAP_PLAN_IDS.length)MAP.fitBounds(pts,{padding:[30,30],maxZoom:14})
 }
@@ -1898,7 +1898,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type=
 /* TCV_PWA_SHELL_V1 */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=11', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('./sw.js?v=12', { scope: './' }).catch(err => console.warn('SW registration failed', err));
   });
 }
 
