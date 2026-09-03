@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b66ff">
-<link rel="manifest" href="manifest.webmanifest?v=2">
-<link rel="apple-touch-icon" href="assets/tcv-splash-logo.jpg?v=2">
+<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="apple-touch-icon" href="assets/tcv-splash-logo.jpg?v=3">
 <meta name="application-name" content="Tanto ci vai?">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1753,7 +1753,7 @@ function showRequestPublishedSuccess(numeroOrdine){
 
 /* STARTUP_SPLASH_V1 */
 const TCV_SPLASH_VIDEO='assets/tcv-welcome-5_5s.mp4?v=1';
-const TCV_SPLASH_LOGO='assets/tcv-splash-logo.jpg?v=2';
+const TCV_SPLASH_LOGO='assets/tcv-splash-logo.jpg?v=3';
 function tcvIntroKey(session){return `tcv_intro_seen_v1_${session?.user?.id||'anon'}`}
 function tcvIsFreshRegistration(session){
   try{
@@ -1848,7 +1848,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type=
 /* TCV_PWA_SHELL_V1 */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=9', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('./sw.js?v=10', { scope: './' }).catch(err => console.warn('SW registration failed', err));
   });
 }
 
