@@ -252,13 +252,20 @@ textarea{min-height:110px}
 .sos-big-actions{display:grid;gap:9px;margin-top:12px}.sos-send-now{width:100%;min-height:58px;border:0;border-radius:18px;background:#c51f35;color:#fff;font-size:15px;font-weight:950}.sos-cancel{width:100%;min-height:54px;border:2px solid #b8c5d8;border-radius:18px;background:#fff;color:#182846;font-size:14px;font-weight:950}.sos-other{width:100%;min-height:52px;border:1px solid #cdd9ea;border-radius:17px;background:#eef5ff;color:#1e5a9c;font-size:12px;font-weight:950}.sos-112{display:block;text-align:center;text-decoration:none;margin-top:10px;padding:13px;border-radius:16px;background:#071a3d;color:#fff;font-weight:950;font-size:13px}
 .help-other-map{height:260px;border-radius:18px;overflow:hidden;border:1px solid var(--line);margin:10px 0}.help-target{padding:11px 12px;border-radius:15px;background:#effff8;border:1px solid #d5f4e8;color:#316b58;font-size:10px;line-height:1.45;margin:8px 0}
 @media (max-width:420px){.urgent-help{min-height:106px;padding:16px}.urgent-help .sosico{width:64px;height:64px}.urgent-help b{font-size:24px}.urgent-help span{font-size:10px}}
+
+/* TCV_SOS_V4_30S */
+.sos-presets-title{margin:13px 0 7px;font-size:10px;font-weight:950;letter-spacing:.04em;color:#7e2636;text-align:center}
+.sos-presets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+.sos-preset{border:1px solid #f0c2ca;background:#fff7f8;border-radius:16px;min-height:66px;padding:10px 8px;font-size:22px;text-align:center;color:var(--ink);font-weight:900}
+.sos-preset b{display:block;font-size:10px;line-height:1.25;margin-top:4px}.sos-preset:active,.sos-preset.chosen{background:#ffe4e8;border-color:#d74a61;transform:scale(.985)}
+@media(max-width:380px){.sos-presets{grid-template-columns:1fr}.sos-preset{min-height:58px}}
 </style>
 </head>
 <body>
 <div id="authView" class="authwrap"><section class="authcard"><div class="authlogo">📍</div><h1>Tanto ci vai?</h1><p>Accedi oppure crea il profilo per chiedere una mano o prendere una commissione.</p><div class="tabs"><button id="loginTab" class="tab on" onclick="setAuthMode('login')">Accedi</button><button id="signupTab" class="tab" onclick="setAuthMode('signup')">Registrati</button></div><div id="signupFields" class="hidden"><div class="field"><label>NOME</label><input id="authName" autocomplete="name" placeholder="Il tuo nome"></div><div class="field"><label>TELEFONO</label><input id="authPhone" inputmode="tel" autocomplete="tel" placeholder="Numero di telefono"></div></div><div class="field"><label>EMAIL</label><input id="authEmail" type="email" autocomplete="email" placeholder="nome@email.it"></div><div class="field"><label>PASSWORD</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimo 6 caratteri"></div><button id="authBtn" class="btn teal full" onclick="submitAuth()">Accedi</button><div id="authStatus" class="status">La sessione resta salvata sul dispositivo in modo sicuro tramite Supabase Auth.</div></section></div>
 
 <div id="appView" class="app hidden"><header class="top"><div class="toprow"><div class="brand"><div class="logo">📦</div><div><b>Tanto ci vai?</b><small id="userLabel">Rete di prossimità locale</small></div></div><button id="avatar" class="avatar" onclick="page('profile')">TC</button></div><div class="loc"><span id="liveLocation">📍 Posizione non condivisa</span><span id="syncBadge" class="pilot">● ONLINE</span></div></header>
-<main id="home"><button class="urgent-help" onclick="openCommunityHelp()"><div class="sosico">🆘</div><div><b>AIUTO SUBITO</b><span>1 tocco · prende il GPS · se non annulli parte automaticamente tra 60 secondi</span></div><div class="sosarrow">→</div></button><section class="hero"><div class="eyebrow">TANTO CI VAI?</div><h1>Uno spostamento può aiutare più di una persona.</h1><p>Le richieste vengono condivise e aggiornate in tempo reale.</p><div class="stats"><div class="stat"><b id="statOpen">0</b><span>richieste aperte</span></div><div class="stat"><b id="statMine">0</b><span>mie richieste</span></div><div class="stat"><b id="statMissions">0</b><span>missioni assegnate</span></div></div></section><div class="sect"><h2>Cosa vuoi fare?</h2><span>Servizio attivo</span></div><section class="actions"><button class="action help" onclick="openNewRequest()"><div class="ico">🙋</div><b>Mi serve una mano</b><p>Pubblica una commissione con ritiro, consegna e compenso.</p><div class="arrow">→</div></button><button class="action go" onclick="openTripSearch()"><div class="ico">🚗</div><b>Sto già andando</b><p>Calcola la tua strada reale e trova richieste compatibili.</p><div class="arrow">→</div></button></section><div class="sect"><h2>Richieste disponibili</h2><span id="feedStatus">Sincronizzate</span></div><section id="feed" class="feed"></section></main>
+<main id="home"><button class="urgent-help" onclick="openCommunityHelp()"><div class="sosico">🆘</div><div><b>AIUTO SUBITO</b><span>1 tocco · prende il GPS · se non annulli parte automaticamente tra 30 secondi</span></div><div class="sosarrow">→</div></button><section class="hero"><div class="eyebrow">TANTO CI VAI?</div><h1>Uno spostamento può aiutare più di una persona.</h1><p>Le richieste vengono condivise e aggiornate in tempo reale.</p><div class="stats"><div class="stat"><b id="statOpen">0</b><span>richieste aperte</span></div><div class="stat"><b id="statMine">0</b><span>mie richieste</span></div><div class="stat"><b id="statMissions">0</b><span>missioni assegnate</span></div></div></section><div class="sect"><h2>Cosa vuoi fare?</h2><span>Servizio attivo</span></div><section class="actions"><button class="action help" onclick="openNewRequest()"><div class="ico">🙋</div><b>Mi serve una mano</b><p>Pubblica una commissione con ritiro, consegna e compenso.</p><div class="arrow">→</div></button><button class="action go" onclick="openTripSearch()"><div class="ico">🚗</div><b>Sto già andando</b><p>Calcola la tua strada reale e trova richieste compatibili.</p><div class="arrow">→</div></button></section><div class="sect"><h2>Richieste disponibili</h2><span id="feedStatus">Sincronizzate</span></div><section id="feed" class="feed"></section></main>
 <main id="missions" class="hidden"></main><main id="myreq" class="hidden"></main><main id="mapPage" class="hidden"></main><main id="wallet" class="hidden"></main><main id="profile" class="hidden"></main></div>
 <nav id="bottomNav" class="bottom hidden"><button class="nav active" data-p="home" onclick="page('home')">⌂<small>Home</small></button><button class="nav" data-p="missions" onclick="page('missions')">⇄<small>Missioni</small></button><button class="nav" onclick="openNewRequest()"><span style="color:var(--blue);font-size:26px">＋</span><small>Richiedi</small></button><button class="nav" data-p="myreq" onclick="page('myreq')">☷<small>Le mie</small></button><button class="nav" data-p="mapPage" onclick="page('mapPage')">⌖<small>Mappa</small></button></nav>
 <div id="ov" class="overlay hidden" onclick="closeSheet()"></div><section id="sheet" class="sheet hidden"><div id="sc"></div></section>
@@ -1648,8 +1655,8 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// TCV SOS V3: one-tap, 60-second automatic fallback, GPS and third-person help.
-let TCV_SOS_ARMED=false,TCV_SOS_ALERT_ID=null,TCV_SOS_DEADLINE=0,TCV_SOS_TIMER=null,TCV_SOS_POS=null,TCV_SOS_MESSAGE_TIMER=null,TCV_SOS_SENDING=false;
+// TCV SOS V4: one-tap, 30-second automatic fallback, GPS, quick reasons and third-person help.
+let TCV_SOS_ARMED=false,TCV_SOS_ALERT_ID=null,TCV_SOS_DEADLINE=0,TCV_SOS_TIMER=null,TCV_SOS_POS=null,TCV_SOS_MESSAGE_TIMER=null,TCV_SOS_SENDING=false,TCV_SOS_LAST_AUTO_ATTEMPT=0;
 let TCV_OTHER_HELP_POS=null,TCV_OTHER_HELP_MAP=null,TCV_OTHER_HELP_MARKER=null;
 
 function tcvLockSosOverlay(lock){
@@ -1659,12 +1666,12 @@ function tcvLockSosOverlay(lock){
 function tcvSosSeconds(){return Math.max(0,Math.ceil((TCV_SOS_DEADLINE-Date.now())/1000))}
 function tcvRenderSosSheet(){
   const sec=tcvSosSeconds();
-  openSheet(`<div class="sos-panel"><div class="sos-kicker">SOS DELLA COMUNITÀ</div><h2 class="sos-title">🆘 AIUTO SUBITO</h2><p class="sos-copy">Non devi compilare niente. Da questo momento l'SOS è attivo: se non lo annulli, tra un minuto viene inviata la tua posizione agli utenti con le notifiche attive.</p><div class="notice yellow" style="margin-top:10px"><b>Emergenza medica o pericolo immediato?</b> Chiama sempre il <b>112</b>. Tanto Ci Vai non sostituisce i soccorsi ufficiali.</div><div class="sos-countdown"><strong id="sosSeconds">${sec}</strong><span id="sosCountdownText">secondi prima dell'invio automatico</span></div><div id="sosGpsBox" class="sos-gps ${TCV_SOS_POS?'ok':''}"><span class="dot"></span><div id="sosGpsText">${TCV_SOS_POS?`GPS acquisito · ${esc(TCV_SOS_POS.label||'posizione pronta')}`:'Sto cercando la posizione GPS…'}</div></div><div class="field"><label>COSA SUCCEDE? · FACOLTATIVO</label><textarea id="sosMessage" rows="2" maxlength="180" placeholder="Puoi lasciare vuoto" oninput="tcvSosMessageChanged()"></textarea></div><div id="sosStatus" class="notice green">✓ SOS armato. Per fermarlo devi premere <b>ANNULLA SOS</b>.</div><div class="sos-big-actions"><button class="sos-send-now" onclick="tcvSendSosNow(false)">🆘 INVIA SUBITO</button><button class="sos-cancel" onclick="tcvCancelSos()">ANNULLA SOS</button><button class="sos-other" onclick="tcvOpenOtherHelp()">📍 AIUTO PER UN'ALTRA PERSONA</button></div><a class="sos-112" href="tel:112">📞 CHIAMA 112</a></div>`);
+  openSheet(`<div class="sos-panel"><div class="sos-kicker">SOS DELLA COMUNITÀ</div><h2 class="sos-title">🆘 AIUTO SUBITO</h2><p class="sos-copy">Non devi compilare niente. Da questo momento l'SOS è attivo: se non lo annulli, tra 30 secondi viene inviata la tua posizione agli utenti con le notifiche attive.</p><div class="notice yellow" style="margin-top:10px"><b>Emergenza medica o pericolo immediato?</b> Chiama sempre il <b>112</b>. Tanto Ci Vai non sostituisce i soccorsi ufficiali.</div><div class="sos-countdown"><strong id="sosSeconds">${sec}</strong><span id="sosCountdownText">secondi prima dell'invio automatico</span></div><div id="sosGpsBox" class="sos-gps ${TCV_SOS_POS?'ok':''}"><span class="dot"></span><div id="sosGpsText">${TCV_SOS_POS?`GPS acquisito · ${esc(TCV_SOS_POS.label||'posizione pronta')}`:'Sto cercando la posizione GPS…'}</div></div><div class="sos-presets-title">SE RIESCI, TOCCA IL MOTIVO · L'SOS PARTE SUBITO</div><div class="sos-presets"><button type="button" class="sos-preset" onclick="tcvSosPreset('Auto in panne / macchina ferma',this)">🚗<b>Auto in panne</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Casa allagata / perdita acqua',this)">💧<b>Casa allagata</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Malore / mi sento male',this)">❤️<b>Mi sento male</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Caduta / mi sono fatto male',this)">🩹<b>Caduta / ferita</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Sono bloccato / mi serve una mano',this)">🚪<b>Sono bloccato</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Altro aiuto urgente',this)">🆘<b>Altro aiuto</b></button></div><div class="field"><label>COSA SUCCEDE? · FACOLTATIVO</label><textarea id="sosMessage" rows="2" maxlength="180" placeholder="Puoi lasciare vuoto" oninput="tcvSosMessageChanged()"></textarea></div><div id="sosStatus" class="notice green">✓ SOS armato. Per fermarlo devi premere <b>ANNULLA SOS</b>.</div><div class="sos-big-actions"><button class="sos-send-now" onclick="tcvSendSosNow(false)">🆘 INVIA SUBITO</button><button class="sos-cancel" onclick="tcvCancelSos()">ANNULLA SOS</button><button class="sos-other" onclick="tcvOpenOtherHelp()">📍 AIUTO PER UN'ALTRA PERSONA</button></div><a class="sos-112" href="tel:112">📞 CHIAMA 112</a></div>`);
   tcvLockSosOverlay(true);
 }
 async function openCommunityHelp(){
   if(TCV_SOS_ARMED){tcvRenderSosSheet();tcvUpdateSosUi();return}
-  TCV_SOS_ARMED=true;TCV_SOS_ALERT_ID=null;TCV_SOS_POS=null;TCV_SOS_DEADLINE=Date.now()+60000;TCV_SOS_SENDING=false;
+  TCV_SOS_ARMED=true;TCV_SOS_ALERT_ID=null;TCV_SOS_POS=null;TCV_SOS_DEADLINE=Date.now()+30000;TCV_SOS_SENDING=false;TCV_SOS_LAST_AUTO_ATTEMPT=0;
   tcvRenderSosSheet();
   clearInterval(TCV_SOS_TIMER);TCV_SOS_TIMER=setInterval(tcvSosTick,250);
   tcvAcquireSosGps();
@@ -1676,7 +1683,7 @@ async function openCommunityHelp(){
 }
 function tcvSosTick(){
   tcvUpdateSosUi();
-  if(TCV_SOS_ARMED&&tcvSosSeconds()<=0&&!TCV_SOS_SENDING)tcvSendSosNow(true)
+  if(TCV_SOS_ARMED&&tcvSosSeconds()<=0&&!TCV_SOS_SENDING&&Date.now()-TCV_SOS_LAST_AUTO_ATTEMPT>5000){TCV_SOS_LAST_AUTO_ATTEMPT=Date.now();tcvSendSosNow(true)}
 }
 function tcvUpdateSosUi(){
   const n=document.getElementById('sosSeconds');if(n)n.textContent=String(tcvSosSeconds());
@@ -1695,9 +1702,17 @@ async function tcvSyncPendingSos(){
   if(TCV_SOS_POS){body.lat=TCV_SOS_POS.lat;body.lng=TCV_SOS_POS.lng;body.location_label=TCV_SOS_POS.label||''}
   try{await db.functions.invoke('send-help-push',{body})}catch(e){}
 }
+function tcvSosPreset(text,btn){
+  if(TCV_SOS_SENDING)return;
+  const ta=document.getElementById('sosMessage');if(ta)ta.value=text;
+  document.querySelectorAll('.sos-preset').forEach(x=>x.classList.remove('chosen'));if(btn)btn.classList.add('chosen');
+  const st=document.getElementById('sosStatus');if(st)st.textContent='🆘 '+text+' · invio immediato…';
+  tcvSendSosNow(false)
+}
 function tcvSosMessageChanged(){clearTimeout(TCV_SOS_MESSAGE_TIMER);TCV_SOS_MESSAGE_TIMER=setTimeout(()=>tcvSyncPendingSos(),600)}
 async function tcvSendSosNow(automatic=false){
   if(TCV_SOS_SENDING)return;TCV_SOS_SENDING=true;
+  if(!TCV_SOS_ALERT_ID){for(let i=0;i<15&&!TCV_SOS_ALERT_ID&&TCV_SOS_ARMED;i++)await new Promise(r=>setTimeout(r,100));}
   const st=document.getElementById('sosStatus');if(st)st.textContent=automatic?'🆘 Tempo scaduto: invio automatico in corso…':'🆘 Invio SOS in corso…';
   const msg=document.getElementById('sosMessage')?.value.trim()||'';
   const body={action:'send_now',alert_id:TCV_SOS_ALERT_ID||undefined,message:msg};if(TCV_SOS_POS){body.lat=TCV_SOS_POS.lat;body.lng=TCV_SOS_POS.lng;body.location_label=TCV_SOS_POS.label||''}
