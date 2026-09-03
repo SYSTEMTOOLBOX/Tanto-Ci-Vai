@@ -1,0 +1,36 @@
+name: Apply Community two-stage location
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/apply_community_two_stage_location.py'
+      - '.github/workflows/apply-community-two-stage-location.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply Community Comune then address flow
+        run: python scripts/apply_community_two_stage_location.py
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add community-routes.js index.html
+          git commit -m "Add Comune-first Community addresses and traveller route labels [skip ci]"
+          git push
