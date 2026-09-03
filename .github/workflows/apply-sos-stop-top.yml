@@ -1,0 +1,36 @@
+name: Apply SOS stop at top
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/apply_sos_stop_top.py'
+      - '.github/workflows/apply-sos-stop-top.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply patch
+        run: python scripts/apply_sos_stop_top.py
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Move SOS stop countdown control to top [skip ci]"
+          git push
