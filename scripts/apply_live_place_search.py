@@ -150,7 +150,7 @@ function renderShopList(){
   el.innerHTML=rows.length?rows.map(p=>{let i=SHOP_RESULTS.indexOf(p);return `<button type="button" class="place-card" onclick="selectShop(${i})"><div><b>${esc(p.name)}</b><small>${p.live?'🌐 Ricerca online · ':''}${esc(shopTypeLabel(p.shop))} · ${esc(p.address||p.city||'Posizione sulla mappa')}${p.housenumber&&!String(p.address||'').includes(String(p.housenumber))?` · N. ${esc(p.housenumber)}`:''}</small></div><span class="place-distance">${Number(p.distance||0).toFixed(1)} km</span></button>`}).join(''):'<div class="notice yellow">Nessun risultato. Prova il nome completo dell’attività oppure premi <b>INDICA SULLA MAPPA</b> qui sotto.</div>'
 }
 function initShopMap(pos){'''
-text2, n = pattern.subn(replacement, text, count=1)
+text2, n = pattern.subn(lambda m: replacement, text, count=1)
 if n != 1:
     if 'async function searchShopNameLive()' not in text:
         raise SystemExit(f'Could not replace old shop filtering logic: matches={n}')
