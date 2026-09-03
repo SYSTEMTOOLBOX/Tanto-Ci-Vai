@@ -33,18 +33,19 @@ Deno.serve(async (req) => {
     const now = Date.now();
     const sixHoursAgo = new Date(now - 6 * 60 * 60 * 1000).toISOString();
     const dayAgoMs = now - 24 * 60 * 60 * 1000;
+    const dayAgoIso = new Date(dayAgoMs).toISOString();
 
-    await admin.from('help_alerts').delete().lt('resolved_at', new Date(dayAgoMs).toISOString());
+    await admin.from('help_alerts').delete().lt('resolved_at', dayAgoIso);
 
     const [{ data: helpRows, error: helpErr }, { data: hazardRows, error: hazardErr }] = await Promise.all([
       admin.from('help_alerts')
-        .select('id,user_id,kind,message,lat,lng,location_label,created_at,sent_at,status,resolution_count,resolved_at')
+        .select('id,user_id,kind,message,lat,lng,location_label,created_at,sent_at,status,resolution_count,resolved_at,owner_closed_at,resolution_note')
         .eq('status', 'sent')
         .in('kind', ['self', 'other'])
         .order('created_at', { ascending: false })
         .limit(150),
       admin.from('help_alerts')
-        .select('id,user_id,kind,message,lat,lng,location_label,created_at,sent_at,status,resolution_count,resolved_at')
+        .select('id,user_id,kind,message,lat,lng,location_label,created_at,sent_at,status,resolution_count,resolved_at,owner_closed_at,resolution_note')
         .eq('status', 'sent')
         .eq('kind', 'hazard')
         .not('lat', 'is', null)
@@ -56,16 +57,24 @@ Deno.serve(async (req) => {
     if (helpErr) throw helpErr;
     if (hazardErr) throw hazardErr;
 
-    const helps = (helpRows || []).filter((r: any) => {
+    const allHelps = helpRows || [];
+    const publicHelps = allHelps.filter((r: any) => {
+      if (r.owner_closed_at) return false;
       if (!r.resolved_at) return true;
       const when = new Date(r.resolved_at).getTime();
       return Number.isFinite(when) && when >= dayAgoMs;
     });
-    const active = [...helps, ...(hazardRows || [])].sort((a: any, b: any) =>
+    const myRows = allHelps.filter((r: any) => r.user_id === user.id).filter((r: any) => {
+      if (!r.resolved_at) return true;
+      const when = new Date(r.resolved_at).getTime();
+      return Number.isFinite(when) && when >= dayAgoMs;
+    });
+
+    const active = [...publicHelps, ...(hazardRows || [])].sort((a: any, b: any) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    const userIds = [...new Set(active.map((r: any) => r.user_id).filter(Boolean))];
+    const userIds = [...new Set([...active, ...myRows].map((r: any) => r.user_id).filter(Boolean))];
     const names = new Map<string, string>();
     if (userIds.length) {
       const { data: profiles, error: profileErr } = await admin.from('profiles').select('id,nome').in('id', userIds);
@@ -73,15 +82,15 @@ Deno.serve(async (req) => {
       for (const p of profiles || []) names.set(p.id, String(p.nome || 'Un utente').trim() || 'Un utente');
     }
 
-    const helpIds = helps.map((r: any) => r.id);
+    const publicHelpIds = publicHelps.map((r: any) => r.id);
     const voted = new Set<string>();
-    if (helpIds.length) {
-      const { data: votes, error: voteErr } = await admin.from('help_alert_resolutions').select('help_alert_id').eq('user_id', user.id).in('help_alert_id', helpIds);
+    if (publicHelpIds.length) {
+      const { data: votes, error: voteErr } = await admin.from('help_alert_resolutions').select('help_alert_id').eq('user_id', user.id).in('help_alert_id', publicHelpIds);
       if (voteErr) throw voteErr;
       for (const v of votes || []) voted.add(String(v.help_alert_id));
     }
 
-    return json({ alerts: active.map((r: any) => ({
+    const mapAlert = (r: any) => ({
       id: r.id,
       kind: r.kind,
       message: String(r.message || '').slice(0, 180),
@@ -94,8 +103,15 @@ Deno.serve(async (req) => {
       is_owner: r.user_id === user.id,
       resolution_count: Number(r.resolution_count || 0),
       resolved_at: r.resolved_at || null,
+      owner_closed_at: r.owner_closed_at || null,
+      resolution_note: String(r.resolution_note || '').slice(0, 400),
       viewer_voted: voted.has(String(r.id)),
-    })) });
+    });
+
+    return json({
+      alerts: active.map(mapAlert),
+      my_sos: myRows.map(mapAlert),
+    });
   } catch (e) {
     console.error('get-community-alerts fatal', String((e as any)?.message || e));
     return json({ error: String((e as any)?.message || e) }, 500);
