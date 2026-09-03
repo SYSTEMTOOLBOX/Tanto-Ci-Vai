@@ -11,14 +11,14 @@
   "theme_color": "#0b66ff",
   "icons": [
     {
-      "src": "assets/tcv-splash-logo.jpg",
-      "sizes": "340x340",
+      "src": "assets/tcv-splash-logo.jpg?v=2",
+      "sizes": "768x768",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "assets/tcv-splash-logo.jpg",
-      "sizes": "340x340",
+      "src": "assets/tcv-splash-logo.jpg?v=2",
+      "sizes": "768x768",
       "type": "image/jpeg",
       "purpose": "maskable"
     }
