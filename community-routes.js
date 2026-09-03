@@ -1,5 +1,6 @@
 /* TCV_COMMUNITY_ROUTES_V1
    TCV_TWO_STAGE_LOCATION_V1
+   TCV_CAP_CONSISTENCY_V1
    Community car-pooling: recurring routes, full place autocomplete,
    transparent €0.35/km/person contribution and active routes on safety map.
 */
@@ -67,7 +68,7 @@
   function featurePoint(f){
     const c=f?.geometry?.coordinates||[],p=f?.properties||{};
     const town=p.city||p.town||p.village||p.municipality||p.locality||'';
-    return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f),town}
+    return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f),town,postcode:p.postcode||''}
   }
   function tcvAddressLike(q){return /^(via|viale|vicolo|piazza|piazzale|p\.?le|corso|strada|borgata|frazione|largo|localita|località)\b/i.test(String(q||'').trim())}
   function tcvTownNorm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
@@ -204,13 +205,13 @@
     const townEl=document.getElementById(townId),placeEl=document.getElementById(placeId);if(!townEl)return;
     const town=tcvTownFromPoint(pt);if(town)townEl.value=town;
     if(pt&&Number.isFinite(Number(pt.lat))&&Number.isFinite(Number(pt.lng))){townEl.dataset.lat=String(pt.lat);townEl.dataset.lng=String(pt.lng)}
-    townEl.dataset.town=town||'';if(placeEl)placeEl.disabled=!town
+    townEl.dataset.town=town||'';townEl.dataset.postcode=String(pt?.postcode||'');if(placeEl)placeEl.disabled=!town
   }
   function tcvTownPointFromInput(townId){
     const el=document.getElementById(townId);if(!el)return null;
-    const town=String(el.dataset.town||el.value||'').trim(),lat=Number(el.dataset.lat),lng=Number(el.dataset.lng);
+    const town=String(el.dataset.town||el.value||'').trim(),lat=Number(el.dataset.lat),lng=Number(el.dataset.lng),postcode=String(el.dataset.postcode||'');
     if(!town)return null;
-    return {lat:Number.isFinite(lat)?lat:NaN,lng:Number.isFinite(lng)?lng:NaN,label:town,town}
+    return {lat:Number.isFinite(lat)?lat:NaN,lng:Number.isFinite(lng)?lng:NaN,label:town,town,postcode}
   }
   function tcvTownRows(fs,q){
     const wanted=tcvTownNorm(q),seen=new Set(),out=[];
@@ -218,7 +219,7 @@
       const raw=tcvFeatureTown(f)||String(featureLabel(f)||'').split(',')[0]||'',town=String(raw).trim();if(!town)continue;
       const norm=tcvTownNorm(town);if(wanted&&!(norm.includes(wanted)||wanted.includes(norm)))continue;if(seen.has(norm))continue;seen.add(norm);
       const p=featurePoint(f);if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))continue;p.town=town;p.label=town;
-      out.push({f,p,town,sub:featureSub(f)});if(out.length>=8)break
+      out.push({f,p,town,postcode:String(f?.properties?.postcode||''),sub:featureSub(f)});if(out.length>=8)break
     }
     return out
   }
@@ -235,13 +236,17 @@
           const rows=tcvTownRows(await photon(q,14,null),q);
           box.innerHTML=rows.length?rows.map((r,i)=>`<button type="button" class="tcv-autoitem" data-i="${i}"><b>📍 ${safe(r.town)}</b><small>${safe(r.sub||'Italia')}</small></button>`).join(''):'<div class="notice yellow">Comune non trovato. Continua a scrivere il nome completo.</div>';
           box.querySelectorAll('button[data-i]').forEach(btn=>btn.addEventListener('pointerdown',ev=>{ev.preventDefault();const r=rows[Number(btn.dataset.i)];if(!r)return;
-            input.value=r.town;input.dataset.town=r.town;input.dataset.lat=String(r.p.lat);input.dataset.lng=String(r.p.lng);state[key]=r.p;clearBox(boxId);
+            input.value=r.town;input.dataset.town=r.town;input.dataset.lat=String(r.p.lat);input.dataset.lng=String(r.p.lng);input.dataset.postcode=r.postcode||'';r.p.postcode=r.postcode||'';state[key]=r.p;clearBox(boxId);
             if(place){place.disabled=false;place.focus()}
             if(target==='trip')tcvMaybeAutoPreview();else tcvMaybeRidePreview()
           }))
         }catch(e){console.warn('community town autocomplete',e);box.innerHTML='<div class="notice yellow">Ricerca comune momentaneamente lenta.</div>'}
       },220)
     })
+  }
+  function tcvLocalFeatureSub(f,townPt){
+    const p=f?.properties||{},cap=String(townPt?.postcode||'').trim();
+    return [cap||p.postcode,p.county,p.country].filter(Boolean).join(' · ')
   }
   function bindLocalAutocomplete(townId,inputId,boxId,key,target='trip'){
     const input=document.getElementById(inputId);if(!input)return;input.setAttribute('autocomplete','off');
@@ -255,9 +260,9 @@
         try{
           const wanted=tcvTownNorm(town),raw=await photon(q,14,townPt);
           const fs=(Array.isArray(raw)?raw:[]).filter(f=>{const got=tcvTownNorm(tcvFeatureTown(f));return got&&(got===wanted||got.includes(wanted)||wanted.includes(got))});
-          box.innerHTML=fs.length?fs.slice(0,8).map((f,i)=>`<button type="button" class="tcv-autoitem" data-i="${i}"><b>${safe(featureLabel(f)||q)}</b><small>${safe(featureSub(f))}</small></button>`).join(''):`<div class="notice yellow">Nessun risultato in ${safe(town)}. Prova con un nome più completo.</div>`;
+          box.innerHTML=fs.length?fs.slice(0,8).map((f,i)=>`<button type="button" class="tcv-autoitem" data-i="${i}"><b>${safe(featureLabel(f)||q)}</b><small>${safe(tcvLocalFeatureSub(f,townPt))}</small></button>`).join(''):`<div class="notice yellow">Nessun risultato in ${safe(town)}. Prova con un nome più completo.</div>`;
           box.querySelectorAll('button[data-i]').forEach(btn=>btn.addEventListener('pointerdown',ev=>{ev.preventDefault();const f=fs[Number(btn.dataset.i)],p=featurePoint(f);if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))return;
-            input.value=tcvPlaceDetail(p)||featureLabel(f)||q;state[key]=p;clearBox(boxId);if(target==='trip')tcvMaybeAutoPreview();else tcvMaybeRidePreview()
+            p.town=town;p.postcode=townPt.postcode||p.postcode||'';input.value=tcvPlaceDetail(p)||featureLabel(f)||q;state[key]=p;clearBox(boxId);if(target==='trip')tcvMaybeAutoPreview();else tcvMaybeRidePreview()
           }))
         }catch(e){console.warn('community local autocomplete',e);box.innerHTML=`<div class="notice yellow">Ricerca indirizzo lenta. Il comune resta ${safe(town)}.</div>`}
       },220)
@@ -270,7 +275,7 @@
     if(!place){state[key]=townPt;return townPt}
     const wanted=tcvTownNorm(townPt.town),fs=await photon(place,12,townPt),exact=(Array.isArray(fs)?fs:[]).filter(f=>{const got=tcvTownNorm(tcvFeatureTown(f));return got&&(got===wanted||got.includes(wanted)||wanted.includes(got))});
     if(!exact.length)throw new Error(`Non trovo “${place}” nel comune di ${townPt.town}.`);
-    const p=featurePoint(exact[0]);state[key]=p;document.getElementById(inputId).value=tcvPlaceDetail(p)||featureLabel(exact[0]);return p
+    const p=featurePoint(exact[0]);p.town=townPt.town;p.postcode=townPt.postcode||p.postcode||'';state[key]=p;document.getElementById(inputId).value=tcvPlaceDetail(p)||featureLabel(exact[0]);return p
   }
   function bindAutocomplete(inputId,boxId,key,target='trip'){
     const input=document.getElementById(inputId);if(!input)return;
