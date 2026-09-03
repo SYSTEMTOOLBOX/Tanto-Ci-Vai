@@ -1,0 +1,33 @@
+name: Apply clean splash logo
+
+on:
+  push:
+    paths:
+      - 'scripts/apply_clean_splash_logo.py'
+      - '.github/workflows/apply-clean-splash-logo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply patch
+        run: python scripts/apply_clean_splash_logo.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html manifest.webmanifest sw.js
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Use clean startup splash logo [skip ci]"
+            git push
+          fi
