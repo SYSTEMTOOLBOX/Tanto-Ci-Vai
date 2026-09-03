@@ -19,6 +19,16 @@ jobs:
         with:
           python-version: '3.12'
       - run: python scripts/apply_sos_30_presets.py
+      - name: Keep SOS Edge Function source aligned to 30 seconds
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/send-help-push/index.ts')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('Date.now() + 60_000', 'Date.now() + 30_000')
+          s=s.replace('sleep(61_000)', 'sleep(31_000)')
+          p.write_text(s, encoding='utf-8')
+          PY
       - name: Commit generated patch
         run: |
           if git diff --quiet; then
@@ -27,6 +37,6 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git commit -m "Fix SOS auto-send, use 30s and add quick reasons [skip ci]"
+          git add index.html supabase/functions/send-help-push/index.ts
+          git commit -m "Keep SOS 30-second fallback aligned [skip ci]"
           git push
