@@ -62,7 +62,26 @@
     return parts.join(', ')
   }
   function featureSub(f){const p=f?.properties||{};return [p.postcode,p.county,p.country].filter(Boolean).join(' · ')}
-  function featurePoint(f){const c=f?.geometry?.coordinates||[];return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f)}}
+  function featurePoint(f){
+    const c=f?.geometry?.coordinates||[],p=f?.properties||{};
+    const town=p.city||p.town||p.village||p.municipality||p.locality||'';
+    return {lat:Number(c[1]),lng:Number(c[0]),label:featureLabel(f),town}
+  }
+  function tcvAddressLike(q){return /^(via|viale|vicolo|piazza|piazzale|p\.?le|corso|strada|borgata|frazione|largo|localita|località)\b/i.test(String(q||'').trim())}
+  function tcvTownNorm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
+  function tcvTownFromPoint(pt){
+    if(pt?.town)return String(pt.town).trim();
+    const parts=String(pt?.label||'').split(',').map(x=>x.trim()).filter(Boolean);
+    if(parts.length>1&&tcvAddressLike(parts[0]))return parts[1];
+    return parts[0]||''
+  }
+  function tcvFeatureTown(f){const p=f?.properties||{};return p.city||p.town||p.village||p.municipality||p.locality||''}
+  function tcvPointDistanceKm(a,b){
+    if(!a||!b||!Number.isFinite(Number(a.lat))||!Number.isFinite(Number(a.lng))||!Number.isFinite(Number(b.lat))||!Number.isFinite(Number(b.lng)))return Infinity;
+    const R=6371,toRad=x=>Number(x)*Math.PI/180,dLat=toRad(Number(b.lat)-Number(a.lat)),dLng=toRad(Number(b.lng)-Number(a.lng));
+    const la1=toRad(a.lat),la2=toRad(b.lat),h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h))
+  }
 
   function tcvNominatimFeature(x){
     const a=x?.address||{};
@@ -89,59 +108,72 @@
     };
   }
 
-  async function photon(q,limit=6){
+  async function photon(q,limit=6,anchor=null){
     const query=String(q||'').trim();if(query.length<2)return [];
+    const anchorTown=(!query.includes(',')&&tcvAddressLike(query))?tcvTownFromPoint(anchor):'';
+    const searches=anchorTown?[`${query}, ${anchorTown}`,query]:[query];
 
-    // Usa PRIMA gli stessi motori già collaudati nella compilazione Farmacia/Altro.
-    // Così Community non ha più un sistema di indirizzi diverso dal resto dell'app.
-    try{
-      if(typeof nominatimDeliverySearch==='function'){
-        const ns=await nominatimDeliverySearch(query,limit);
-        const fs=(Array.isArray(ns)?ns:[]).map(tcvNominatimFeature).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1]));
-        if(fs.length)return fs;
+    const localFilter=(fs,isLocal)=>{
+      const rows=Array.isArray(fs)?fs.filter(Boolean):[];if(!isLocal||!anchorTown)return rows;
+      const wanted=tcvTownNorm(anchorTown);
+      const same=rows.filter(f=>{const got=tcvTownNorm(tcvFeatureTown(f));return got&&(got===wanted||got.includes(wanted)||wanted.includes(got))});
+      if(same.length)return same;
+      if(anchor){
+        const near=rows.filter(f=>tcvPointDistanceKm(anchor,featurePoint(f))<=25);
+        if(near.length)return near;
       }
-    }catch(e){console.warn('community nominatim app helper',e)}
+      return [];
+    };
 
-    try{
-      if(typeof photonSearch==='function'){
-        const fs=await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=${limit}`);
-        if(Array.isArray(fs)&&fs.length)return fs;
-      }
-    }catch(e){console.warn('community photon app helper',e)}
+    for(let attempt=0;attempt<searches.length;attempt++){
+      const candidate=searches[attempt],isLocal=!!anchorTown&&attempt===0;
 
-    // Secondo fallback: Nominatim diretto, identico alla geocodifica già usata dall'app.
-    try{
-      const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
-      const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
       try{
-        const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=it&addressdetails=1&limit=${limit}&q=${encodeURIComponent(query)}`,
-          ctrl?{signal:ctrl.signal,headers:{'Accept-Language':'it'}}:{headers:{'Accept-Language':'it'}});
-        if(r.ok){
-          const ns=await r.json();
-          const fs=(Array.isArray(ns)?ns:[]).map(tcvNominatimFeature).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1]));
-          if(fs.length)return fs;
+        if(typeof nominatimDeliverySearch==='function'){
+          const ns=await nominatimDeliverySearch(candidate,Math.max(limit,8));
+          const fs=localFilter((Array.isArray(ns)?ns:[]).map(tcvNominatimFeature).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1])),isLocal);
+          if(fs.length)return fs.slice(0,limit);
         }
-      }finally{if(timer)clearTimeout(timer)}
-    }catch(e){console.warn('community nominatim direct',e)}
+      }catch(e){console.warn('community nominatim app helper',e)}
 
-    // Terzo fallback: proxy Supabase.
-    try{
-      if(typeof db!=='undefined'&&db?.functions?.invoke){
-        const {data,error}=await db.functions.invoke('community-place-search',{body:{q:query,limit}});
-        if(!error&&Array.isArray(data?.features)&&data.features.length)return data.features;
-      }
-    }catch(e){console.warn('community place proxy',e)}
-
-    // Ultimo tentativo Photon diretto. Se anche questo non va, restituiamo [] e
-    // l'interfaccia invita a continuare a scrivere invece di mostrare un errore tecnico.
-    try{
-      const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
-      const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
       try{
-        const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query+', Italia')}&limit=${limit}&lang=it`,ctrl?{signal:ctrl.signal}:undefined);
-        if(r.ok){const j=await r.json();if(Array.isArray(j.features))return j.features}
-      }finally{if(timer)clearTimeout(timer)}
-    }catch(e){console.warn('community photon direct',e)}
+        if(typeof photonSearch==='function'){
+          const fs=localFilter(await photonSearch(`https://photon.komoot.io/api/?q=${encodeURIComponent(candidate)}&limit=${Math.max(limit,8)}`),isLocal);
+          if(fs.length)return fs.slice(0,limit);
+        }
+      }catch(e){console.warn('community photon app helper',e)}
+
+      try{
+        const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+        const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
+        try{
+          const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=it&addressdetails=1&limit=${Math.max(limit,8)}&q=${encodeURIComponent(candidate)}`,
+            ctrl?{signal:ctrl.signal,headers:{'Accept-Language':'it'}}:{headers:{'Accept-Language':'it'}});
+          if(r.ok){
+            const ns=await r.json();
+            const fs=localFilter((Array.isArray(ns)?ns:[]).map(tcvNominatimFeature).filter(f=>Number.isFinite(f.geometry.coordinates[0])&&Number.isFinite(f.geometry.coordinates[1])),isLocal);
+            if(fs.length)return fs.slice(0,limit);
+          }
+        }finally{if(timer)clearTimeout(timer)}
+      }catch(e){console.warn('community nominatim direct',e)}
+
+      try{
+        if(typeof db!=='undefined'&&db?.functions?.invoke){
+          const {data,error}=await db.functions.invoke('community-place-search',{body:{q:candidate,limit:Math.max(limit,8)}});
+          const fs=localFilter(!error&&Array.isArray(data?.features)?data.features:[],isLocal);
+          if(fs.length)return fs.slice(0,limit);
+        }
+      }catch(e){console.warn('community place proxy',e)}
+
+      try{
+        const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+        const timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
+        try{
+          const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(candidate+', Italia')}&limit=${Math.max(limit,8)}&lang=it`,ctrl?{signal:ctrl.signal}:undefined);
+          if(r.ok){const j=await r.json();const fs=localFilter(Array.isArray(j.features)?j.features:[],isLocal);if(fs.length)return fs.slice(0,limit)}
+        }finally{if(timer)clearTimeout(timer)}
+      }catch(e){console.warn('community photon direct',e)}
+    }
     return [];
   }
   async function reversePoint(lat,lng){
@@ -164,18 +196,20 @@
     const input=document.getElementById(inputId);if(!input)return;
     input.setAttribute('autocomplete','off');
     input.addEventListener('input',()=>{
-      if(target==='trip')draft[key]=null;else rideDraft[key]=null;
+      const state=target==='trip'?draft:rideDraft,anchor=state[key==='from'?'to':'from'];
+      state[key]=null;
       clearTimeout(searchTimers[inputId]);
       const q=input.value.trim();if(q.length<2){clearBox(boxId);return}
       searchTimers[inputId]=setTimeout(async()=>{
         const box=document.getElementById(boxId);if(!box)return;
-        box.innerHTML='<div class="notice">Cerco città, via, piazza e luogo…</div>';
+        const anchorTown=(!q.includes(',')&&tcvAddressLike(q))?tcvTownFromPoint(anchor):'';
+        box.innerHTML=`<div class="notice">${anchorTown?`Cerco prima nel comune di <b>${safe(anchorTown)}</b>…`:'Cerco città, via, piazza e luogo…'}</div>`;
         try{
-          const fs=await photon(q,7);
-          box.innerHTML=fs.length?fs.map((f,i)=>`<button type="button" class="tcv-autoitem" data-i="${i}"><b>${safe(featureLabel(f)||q)}</b><small>${safe(featureSub(f))}</small></button>`).join(''):'<div class="notice yellow">Nessun luogo trovato. Continua a scrivere oppure prova con via + comune.</div>';
+          const fs=await photon(q,7,anchor);
+          box.innerHTML=fs.length?fs.map((f,i)=>`<button type="button" class="tcv-autoitem" data-i="${i}"><b>${safe(featureLabel(f)||q)}</b><small>${safe(featureSub(f))}</small></button>`).join(''):'<div class="notice yellow">Nessun luogo trovato. Se vuoi un altro paese scrivi anche il comune, per esempio “Piazza …, Chivasso”.</div>';
           box.querySelectorAll('button[data-i]').forEach(btn=>btn.addEventListener('pointerdown',(ev)=>{ev.preventDefault();
             const f=fs[Number(btn.dataset.i)],p=featurePoint(f);if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))return;
-            input.value=p.label||q;if(target==='trip')draft[key]=p;else rideDraft[key]=p;clearBox(boxId);
+            input.value=p.label||q;state[key]=p;clearBox(boxId);
             if(target==='trip')tcvMaybeAutoPreview();else tcvMaybeRidePreview()
           }))
         }catch(e){console.warn('community autocomplete',e);box.innerHTML='<div class="notice yellow">Ricerca momentaneamente lenta: continua a scrivere città, via o piazza.</div>'}
@@ -189,7 +223,8 @@
     const val=document.getElementById(inputId)?.value.trim()||'';if(!val)throw new Error('Inserisci partenza e destinazione.');
     const gps=val.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
     if(gps){const p=await reversePoint(Number(gps[1]),Number(gps[2]));state[key]=p;document.getElementById(inputId).value=p.label;return p}
-    const fs=await photon(val,1);if(!fs.length)throw new Error(`Non trovo “${val}”. Scrivi anche il comune.`);
+    const anchor=state[key==='from'?'to':'from'];
+    const fs=await photon(val,1,anchor);if(!fs.length)throw new Error(`Non trovo “${val}”. Scrivi anche il comune.`);
     const p=featurePoint(fs[0]);state[key]=p;document.getElementById(inputId).value=p.label;return p
   }
 
