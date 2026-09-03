@@ -23,6 +23,8 @@ jobs:
           python-version: '3.x'
       - name: Apply Community Comune then address flow
         run: python scripts/apply_community_two_stage_location.py
+      - name: Validate Community JavaScript
+        run: node --check community-routes.js
       - name: Commit changes
         run: |
           if git diff --quiet; then
