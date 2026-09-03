@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 p = Path('community-routes.js')
 s = p.read_text(encoding='utf-8')
@@ -30,4 +31,12 @@ replacement = r'''  async function photon(q,limit=6){
 '''
 s = s[:start] + replacement + s[end:]
 p.write_text(s, encoding='utf-8')
-print('Community place search now uses Supabase proxy with direct fallback')
+
+idx = Path('index.html')
+html = idx.read_text(encoding='utf-8')
+html2 = re.sub(r'community-routes\.js\?v=\d+', 'community-routes.js?v=2', html, count=1)
+if html2 == html and 'community-routes.js?v=2' not in html:
+    raise SystemExit('community-routes script tag not found')
+idx.write_text(html2, encoding='utf-8')
+
+print('Community place search now uses Supabase proxy with direct fallback; cache version bumped')
