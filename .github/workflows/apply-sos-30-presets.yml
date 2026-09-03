@@ -1,0 +1,32 @@
+name: Apply SOS 30s and quick reasons
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/apply_sos_30_presets.py
+      - .github/workflows/apply-sos-30-presets.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/apply_sos_30_presets.py
+      - name: Commit generated patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix SOS auto-send, use 30s and add quick reasons [skip ci]"
+          git push
