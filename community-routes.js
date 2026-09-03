@@ -1,6 +1,7 @@
 /* TCV_COMMUNITY_ROUTES_V1
    TCV_TWO_STAGE_LOCATION_V1
    TCV_CAP_CONSISTENCY_V1
+   TCV_TOWN_PREFIX_FIX_V1
    Community car-pooling: recurring routes, full place autocomplete,
    transparent €0.35/km/person contribution and active routes on safety map.
 */
@@ -216,12 +217,41 @@
   function tcvTownRows(fs,q){
     const wanted=tcvTownNorm(q),seen=new Set(),out=[];
     for(const f of (Array.isArray(fs)?fs:[])){
-      const raw=tcvFeatureTown(f)||String(featureLabel(f)||'').split(',')[0]||'',town=String(raw).trim();if(!town)continue;
-      const norm=tcvTownNorm(town);if(wanted&&!(norm.includes(wanted)||wanted.includes(norm)))continue;if(seen.has(norm))continue;seen.add(norm);
+      const props=f?.properties||{};
+      const candidates=[tcvFeatureTown(f),props.name,props.city,props.town,props.village,props.municipality,String(featureLabel(f)||'').split(',')[0]].filter(Boolean);
+      const town=String(candidates.find(v=>{const n=tcvTownNorm(v);return !wanted||n.startsWith(wanted)||n.includes(wanted)||wanted.includes(n)})||candidates[0]||'').trim();
+      if(!town)continue;
+      const norm=tcvTownNorm(town);if(wanted&&!(norm.startsWith(wanted)||norm.includes(wanted)||wanted.includes(norm)))continue;if(seen.has(norm))continue;seen.add(norm);
       const p=featurePoint(f);if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng))continue;p.town=town;p.label=town;
-      out.push({f,p,town,postcode:String(f?.properties?.postcode||''),sub:featureSub(f)});if(out.length>=8)break
+      out.push({f,p,town,postcode:String(props.postcode||''),sub:featureSub(f)});if(out.length>=8)break
     }
     return out
+  }
+  async function tcvTownSearch(q){
+    const query=String(q||'').trim();if(query.length<2)return [];
+    let rows=[];
+    try{rows=tcvTownRows(await photon(query,20,null),query);if(rows.length)return rows}catch(e){console.warn('town generic search',e)}
+    try{
+      const ctrl=typeof AbortController!=='undefined'?new AbortController():null,timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
+      try{
+        const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=it&addressdetails=1&limit=20&q=${encodeURIComponent(query+', Italia')}`,ctrl?{signal:ctrl.signal,headers:{'Accept-Language':'it'}}:{headers:{'Accept-Language':'it'}});
+        if(r.ok){const data=await r.json();rows=tcvTownRows((Array.isArray(data)?data:[]).map(tcvNominatimFeature),query);if(rows.length)return rows}
+      }finally{if(timer)clearTimeout(timer)}
+    }catch(e){console.warn('town nominatim fallback',e)}
+    try{
+      const ctrl=typeof AbortController!=='undefined'?new AbortController():null,timer=ctrl?setTimeout(()=>ctrl.abort(),6000):null;
+      try{
+        const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query+', Italia')}&limit=20&lang=it`,ctrl?{signal:ctrl.signal}:undefined);
+        if(r.ok){const data=await r.json();rows=tcvTownRows(Array.isArray(data?.features)?data.features:[],query);if(rows.length)return rows}
+      }finally{if(timer)clearTimeout(timer)}
+    }catch(e){console.warn('town photon fallback',e)}
+    try{
+      if(typeof db!=='undefined'&&db?.functions?.invoke){
+        const {data,error}=await db.functions.invoke('community-place-search',{body:{q:query+', Italia',limit:20}});
+        if(!error){rows=tcvTownRows(Array.isArray(data?.features)?data.features:[],query);if(rows.length)return rows}
+      }
+    }catch(e){console.warn('town proxy fallback',e)}
+    return []
   }
   function bindTownAutocomplete(townId,boxId,placeId,placeBoxId,key,target='trip'){
     const input=document.getElementById(townId),place=document.getElementById(placeId);if(!input)return;
@@ -233,7 +263,7 @@
       searchTimers[townId]=setTimeout(async()=>{
         const box=document.getElementById(boxId);if(!box)return;box.innerHTML='<div class="notice">Cerco il comune…</div>';
         try{
-          const rows=tcvTownRows(await photon(q,14,null),q);
+          const rows=await tcvTownSearch(q);
           box.innerHTML=rows.length?rows.map((r,i)=>`<button type="button" class="tcv-autoitem" data-i="${i}"><b>📍 ${safe(r.town)}</b><small>${safe(r.sub||'Italia')}</small></button>`).join(''):'<div class="notice yellow">Comune non trovato. Continua a scrivere il nome completo.</div>';
           box.querySelectorAll('button[data-i]').forEach(btn=>btn.addEventListener('pointerdown',ev=>{ev.preventDefault();const r=rows[Number(btn.dataset.i)];if(!r)return;
             input.value=r.town;input.dataset.town=r.town;input.dataset.lat=String(r.p.lat);input.dataset.lng=String(r.p.lng);input.dataset.postcode=r.postcode||'';r.p.postcode=r.postcode||'';state[key]=r.p;clearBox(boxId);
