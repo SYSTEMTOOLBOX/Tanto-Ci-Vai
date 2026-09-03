@@ -292,6 +292,11 @@ textarea{min-height:110px}
   .home-sos-icon{font-size:46px!important}
   .home-sos-round b{font-size:35px!important}
 }
+
+/* TCV_COMMUNITY_ALERT_MAP_V1 */
+.map-community-legend{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 12px}.map-community-legend span{display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:9px;font-weight:950}.map-key-dot{width:14px;height:14px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px rgba(7,26,61,.16)}.map-key-dot.pickup{background:#3388ff}.map-key-dot.hazard{background:#f5c400}.map-key-dot.help{background:#d92132}.community-marker-wrap{background:transparent!important;border:0!important}.community-marker{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:23px;border:4px solid #fff;box-shadow:0 7px 20px rgba(7,26,61,.32);font-weight:950}.community-marker.hazard{background:#f5c400;color:#332700}.community-marker.help{background:#d92132;color:#fff;animation:tcvHelpPulse 1.35s infinite}.community-popup{min-width:210px;line-height:1.35}.community-popup b{font-size:13px}.community-popup .where{font-size:10px;color:#53627c;margin-top:5px}.community-popup .msg{font-size:11px;margin-top:6px}.community-popup button{width:100%;border:0;border-radius:10px;padding:9px;margin-top:8px;background:#0b66ff;color:#fff;font-weight:900}@keyframes tcvHelpPulse{0%,100%{box-shadow:0 7px 20px rgba(217,33,50,.25),0 0 0 0 rgba(217,33,50,.30)}50%{box-shadow:0 7px 20px rgba(217,33,50,.36),0 0 0 10px rgba(217,33,50,0)}}
+.tcv-alert-success{text-align:center;padding:24px 4px 12px;min-height:56vh;display:flex;flex-direction:column;justify-content:center}.tcv-alert-success-icon{width:132px;height:132px;border-radius:50%;display:grid;place-items:center;margin:0 auto 18px;font-size:62px;border:7px solid #fff;box-shadow:0 15px 34px rgba(7,26,61,.16)}.tcv-alert-success.hazard .tcv-alert-success-icon{background:#f5c400}.tcv-alert-success.help .tcv-alert-success-icon{background:#d92132;color:#fff}.tcv-alert-success .big-kicker{font-size:11px;letter-spacing:.14em;font-weight:950;margin-bottom:7px}.tcv-alert-success h2{font-size:34px;line-height:1.02;letter-spacing:-.045em;margin:0 auto 10px;max-width:480px}.tcv-alert-success p{font-size:13px;line-height:1.5;color:var(--muted);max-width:470px;margin:0 auto 18px}.tcv-success-home{width:100%;border:0;border-radius:18px;padding:17px 14px;background:linear-gradient(135deg,var(--blue),#277bff);color:#fff;font-size:16px;font-weight:950}.tcv-success-map{width:100%;border:1px solid var(--line);border-radius:18px;padding:15px 14px;background:#fff;color:var(--ink);font-size:14px;font-weight:950;margin-top:9px}
+
 </style>
 </head>
 <body>
@@ -310,7 +315,7 @@ textarea{min-height:110px}
 const SUPABASE_URL='https://qdsphfmcibrveygkmyex.supabase.co';
 const SUPABASE_KEY='sb_publishable_Ltkh4jRJnihqwzhUCNYPYg_WN47PO13';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,MAP_PLAN_IDS=[],MAP_PLAN_START=null,MAP_PLAN_ROUTE=null,MAP_PLAN_ROUTE_LAYER=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SHOP_MAP=null,SHOP_RESULTS=[],SHOP_BASE_RESULTS=[],SHOP_LIVE_SEARCH_ID=0,SHOP_FILTER='supermarket',SELECTED_PLACE=null,PICKUP_MAP=null,PICKUP_MARKER=null,PICKUP_POINT=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null,WALLET_ENTRIES=[],WALLET_YEAR_ROW=null;
+let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,MAP_PLAN_IDS=[],MAP_PLAN_START=null,MAP_PLAN_ROUTE=null,MAP_PLAN_ROUTE_LAYER=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SHOP_MAP=null,SHOP_RESULTS=[],SHOP_BASE_RESULTS=[],SHOP_LIVE_SEARCH_ID=0,SHOP_FILTER='supermarket',SELECTED_PLACE=null,PICKUP_MAP=null,PICKUP_MARKER=null,PICKUP_POINT=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null,WALLET_ENTRIES=[],WALLET_YEAR_ROW=null,COMMUNITY_ALERTS=[];
 const euro=n=>'€ '+Number(n||0).toFixed(2).replace('.',',');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* ORDER_NUMBERS_V1 */
@@ -1625,12 +1630,40 @@ async function openMapOffer(id){
     box.innerHTML=`🚗 <b>${fmtDistance(data.distance)}</b> · <b>${fmtDuration(data.duration)}</b> per il giro${MAP_PLAN_IDS.length?`<br>Questa tappa aggiunge circa <b>${fmtPlanDelta(extraD,'km')}</b> · <b>${fmtPlanDelta(extraT,'time')}</b>`:''}${candidate?`<br>Consegna stimata: <b>${candidate.arrival.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</b>${late?' · ⚠️ oltre il limite richiesto':''}`:''}`
   }catch(e){if(box){box.className='notice yellow';box.innerHTML=`Non riesco a calcolare dalla posizione attuale: ${esc(e.message)}. Puoi comunque vedere ritiro/consegna e decidere.`}}
 }
-function renderMapPage(){mapPage.innerHTML=`<div class="pagehead"><div class="k">MAPPA LIVE</div><h2>Richieste disponibili</h2><p>Tocca un bersaglio: calcolo km e tempo. Le tappe restano in un pannello sopra la mappa, senza spostarla.</p></div><button class="gpsbtn" onclick="locateMe()">📍 Aggiorna la mia posizione</button><div class="map-shell"><div id="map"></div><button id="mapPlanChip" class="map-plan-chip hidden" onclick="expandMapPlanPanel()">🧭 Giro</button><div id="mapPlanPanel" class="map-plan-sheet hidden"></div></div>`;setTimeout(()=>{initMap();setTimeout(recalculateMapPlan,100)},100)}
+async function loadCommunityAlerts(){
+  const st=document.getElementById('mapAlertStatus');
+  try{
+    if(st)st.textContent='Aggiorno pericoli e richieste di aiuto…';
+    const {data,error}=await db.functions.invoke('get-community-alerts',{body:{}});if(error)throw error;if(data?.error)throw new Error(data.error);
+    COMMUNITY_ALERTS=Array.isArray(data?.alerts)?data.alerts.filter(a=>Number.isFinite(+a.lat)&&Number.isFinite(+a.lng)):[];
+    const hazards=COMMUNITY_ALERTS.filter(a=>a.kind==='hazard').length,helps=COMMUNITY_ALERTS.length-hazards;
+    if(st)st.innerHTML=`Aggiornata ora · <b>${hazards}</b> pericoli · <b>${helps}</b> richieste di assistenza`;
+  }catch(e){COMMUNITY_ALERTS=[];if(st)st.textContent='Ritiri aggiornati. Avvisi comunità momentaneamente non disponibili.';console.warn('Community alerts map',e)}
+}
+function communityAlertIcon(kind){
+  const hazard=kind==='hazard';
+  return L.divIcon({className:'community-marker-wrap',html:`<div class="community-marker ${hazard?'hazard':'help'}">${hazard?'⚠':'🆘'}</div>`,iconSize:[46,46],iconAnchor:[23,23],popupAnchor:[0,-25]})
+}
+function openCommunityAlertMaps(lat,lng){
+  const url=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}&dir_action=navigate`;
+  window.open(url,'_blank')
+}
+function communityAlertPopup(a){
+  const hazard=a.kind==='hazard',title=hazard?'⚠️ PERICOLO SEGNALATO':'🆘 ASSISTENZA IMMEDIATA';
+  const msg=String(a.message||'').trim()||(hazard?'Pericolo segnalato dalla comunità':'Richiesta urgente di aiuto');
+  const where=String(a.location_label||'').trim();
+  return `<div class="community-popup"><b>${title}</b><div class="msg">${esc(msg)}</div>${where?`<div class="where">📍 ${esc(where)}</div>`:''}<div class="where">Segnalato da ${esc(a.sender_name||'un utente')}</div><button onclick="openCommunityAlertMaps(${Number(a.lat)},${Number(a.lng)})">🧭 INDICAZIONI</button></div>`
+}
+function renderMapPage(){
+  mapPage.innerHTML=`<div class="pagehead"><div class="k">MAPPA LIVE</div><h2>Mappa della comunità</h2><p>Qui vedi ritiri, pericoli segnalati e richieste di assistenza immediata.</p></div><div class="map-community-legend"><span><i class="map-key-dot pickup"></i> Ritiro</span><span><i class="map-key-dot hazard"></i> Attenzione / pericolo</span><span><i class="map-key-dot help"></i> Assistenza immediata</span></div><div id="mapAlertStatus" class="notice" style="margin-bottom:9px">Aggiorno la mappa…</div><button class="gpsbtn" onclick="locateMe()">📍 Aggiorna la mia posizione</button><div class="map-shell"><div id="map"></div><button id="mapPlanChip" class="map-plan-chip hidden" onclick="expandMapPlanPanel()">🧭 Giro</button><div id="mapPlanPanel" class="map-plan-sheet hidden"></div></div>`;
+  loadCommunityAlerts().finally(()=>setTimeout(()=>{initMap();setTimeout(recalculateMapPlan,100)},60))
+}
 function initMap(){
   if(MAP){MAP.remove();MAP=null}MAP_PLAN_ROUTE_LAYER=null;MAP=L.map('map').setView([45.18,7.99],11);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(MAP);let pts=[];
-  REQUESTS.filter(r=>requestOpen(r)&&r.cliente_id!==SESSION.user.id&&r.ritiro_lat&&r.ritiro_lng).forEach(r=>{let ll=[r.ritiro_lat,r.ritiro_lng];pts.push(ll);let marker=L.marker(ll).addTo(MAP);let inPlan=MAP_PLAN_IDS.includes(r.id);marker.bindTooltip(`${inPlan?'✓ ':''}${esc(r.titolo)} · ${euro(r.compenso_rider)}`,{direction:'top'});marker.on('click',()=>openMapOffer(r.id))});
+  REQUESTS.filter(r=>requestOpen(r)&&r.cliente_id!==SESSION.user.id&&r.ritiro_lat&&r.ritiro_lng).forEach(r=>{let ll=[r.ritiro_lat,r.ritiro_lng];pts.push(ll);let marker=L.marker(ll).addTo(MAP);let inPlan=MAP_PLAN_IDS.includes(r.id);marker.bindTooltip(`📦 ${inPlan?'✓ ':''}${esc(r.titolo)} · ${euro(r.compenso_rider)}`,{direction:'top'});marker.on('click',()=>openMapOffer(r.id))});
+  COMMUNITY_ALERTS.forEach(a=>{const ll=[Number(a.lat),Number(a.lng)];pts.push(ll);L.marker(ll,{icon:communityAlertIcon(a.kind),zIndexOffset:a.kind==='hazard'?700:1000}).addTo(MAP).bindPopup(communityAlertPopup(a),{maxWidth:290})});
   if(USER_POS){L.circleMarker([USER_POS.lat,USER_POS.lng],{radius:8,weight:4,fillOpacity:.9}).addTo(MAP).bindPopup('La tua posizione')}
-  if(pts.length&&!MAP_PLAN_IDS.length)MAP.fitBounds(pts,{padding:[25,25],maxZoom:14})
+  if(pts.length&&!MAP_PLAN_IDS.length)MAP.fitBounds(pts,{padding:[30,30],maxZoom:14})
 }
 function focusRequest(id){let r=REQUESTS.find(x=>x.id===id);if(!r)return;page('mapPage');setTimeout(()=>{if(MAP&&r.ritiro_lat)MAP.setView([r.ritiro_lat,r.ritiro_lng],15)},250)}
 function locateMe(){if(!navigator.geolocation){alert('GPS non disponibile.');return}navigator.geolocation.getCurrentPosition(pos=>{USER_POS={lat:pos.coords.latitude,lng:pos.coords.longitude};MAP_PLAN_START={...USER_POS};if(MAP){L.circleMarker([USER_POS.lat,USER_POS.lng],{radius:8,weight:4,fillOpacity:.9}).addTo(MAP).bindPopup('La tua posizione').openPopup();MAP.setView([USER_POS.lat,USER_POS.lng],14)}recalculateMapPlan()},()=>alert('Consenti la posizione al browser.'),{enableHighAccuracy:true,timeout:12000})}
@@ -1803,7 +1836,7 @@ navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type=
 /* TCV_PWA_SHELL_V1 */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=5', { scope: './' }).catch(err => console.warn('SW registration failed', err));
+    navigator.serviceWorker.register('./sw.js?v=6', { scope: './' }).catch(err => console.warn('SW registration failed', err));
   });
 }
 
@@ -1812,6 +1845,20 @@ let TCV_SOS_ARMED=false,TCV_SOS_ALERT_ID=null,TCV_SOS_DEADLINE=0,TCV_SOS_TIMER=n
 let TCV_OTHER_HELP_POS=null,TCV_OTHER_HELP_MAP=null,TCV_OTHER_HELP_MARKER=null;
 let TCV_HAZARD_POS=null,TCV_HAZARD_MAP=null,TCV_HAZARD_MARKER=null;
 
+
+function tcvGoHomeAfterAlert(){closeSheet();page('home')}
+function tcvGoMapAfterAlert(){closeSheet();page('mapPage')}
+function tcvShowAlertSuccess(kind){
+  const hazard=kind==='hazard',sos=kind==='sos';
+  COMMUNITY_ALERTS=[];
+  const icon=hazard?'⚠️':'🆘';
+  const kicker=hazard?'SEGNALAZIONE INVIATA':(sos?'SOS INVIATO':'RICHIESTA INVIATA');
+  const title=hazard?'PERICOLO SEGNALATO':(sos?'SOS INVIATO':'RICHIESTA D’AIUTO INVIATA');
+  const copy=hazard?'Il punto è stato pubblicato sulla mappa della comunità. Gli utenti vedranno un indicatore giallo di attenzione.':'La posizione è stata pubblicata sulla mappa della comunità con un indicatore rosso di assistenza immediata.';
+  const emergency=hazard?'':`<div class="notice yellow" style="margin:0 auto 14px;max-width:470px"><b>Se è un’emergenza reale chiama sempre il 112.</b> La comunità non sostituisce i soccorsi ufficiali.</div><a class="sos-112" href="tel:112" style="margin-bottom:10px">📞 CHIAMA 112</a>`;
+  openSheet(`<div class="tcv-alert-success ${hazard?'hazard':'help'}"><div class="tcv-alert-success-icon">${icon}</div><div class="big-kicker">${kicker}</div><h2>${title}</h2><p>${copy}</p>${emergency}<button class="tcv-success-home" onclick="tcvGoHomeAfterAlert()">🏠 VAI ALLA HOME</button><button class="tcv-success-map" onclick="tcvGoMapAfterAlert()">⌖ VEDI SULLA MAPPA</button></div>`)
+}
+
 function tcvLockSosOverlay(lock){
   const ov=document.getElementById('ov');if(!ov)return;
   if(lock){ov.onclick=null;ov.style.cursor='default'}else{ov.onclick=closeSheet;ov.style.cursor=''}
@@ -1819,7 +1866,7 @@ function tcvLockSosOverlay(lock){
 function tcvSosSeconds(){return Math.max(0,Math.ceil((TCV_SOS_DEADLINE-Date.now())/1000))}
 function tcvRenderSosSheet(){
   const sec=tcvSosSeconds();
-  openSheet(`<div class="sos-panel"><div class="sos-kicker">SOS DELLA COMUNITÀ</div><h2 class="sos-title">🆘 AIUTO SUBITO</h2><p class="sos-copy">Non devi compilare niente. Da questo momento l'SOS è attivo: se non lo annulli, tra 30 secondi viene inviata la tua posizione agli utenti con le notifiche attive.</p><div class="notice yellow" style="margin-top:10px"><b>Emergenza medica o pericolo immediato?</b> Chiama sempre il <b>112</b>. Tanto Ci Vai non sostituisce i soccorsi ufficiali.</div><div class="sos-countdown"><strong id="sosSeconds">${sec}</strong><span id="sosCountdownText">secondi prima dell'invio automatico</span></div><div id="sosGpsBox" class="sos-gps ${TCV_SOS_POS?'ok':''}"><span class="dot"></span><div id="sosGpsText">${TCV_SOS_POS?`GPS acquisito · ${esc(TCV_SOS_POS.label||'posizione pronta')}`:'Sto cercando la posizione GPS…'}</div></div><div class="sos-presets-title">SE RIESCI, TOCCA IL MOTIVO · L'SOS PARTE SUBITO</div><div class="sos-presets"><button type="button" class="sos-preset" onclick="tcvSosPreset('Auto in panne / macchina ferma',this)">🚗<b>Auto in panne</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Casa allagata / perdita acqua',this)">💧<b>Casa allagata</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Malore / mi sento male',this)">❤️<b>Mi sento male</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Caduta / mi sono fatto male',this)">🩹<b>Caduta / ferita</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Sono bloccato / mi serve una mano',this)">🚪<b>Sono bloccato</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Altro aiuto urgente',this)">🆘<b>Altro aiuto</b></button></div><div class="field"><label>COSA SUCCEDE? · FACOLTATIVO</label><textarea id="sosMessage" rows="2" maxlength="180" placeholder="Puoi lasciare vuoto" oninput="tcvSosMessageChanged()"></textarea></div><div id="sosStatus" class="notice green">✓ SOS armato. Per fermarlo devi premere <b>ANNULLA SOS</b>.</div><div class="sos-big-actions"><button class="sos-pause" onclick="tcvPauseSosForReport()">⏸ FERMA COUNTDOWN / SEGNALA CON CALMA</button><button class="sos-send-now" onclick="tcvSendSosNow(false)">🆘 INVIA SUBITO</button><button class="sos-cancel" onclick="tcvCancelSos()">ANNULLA SOS</button><button class="sos-other" onclick="tcvOpenOtherHelp()">📍 AIUTO PER UN'ALTRA PERSONA</button></div><a class="sos-112" href="tel:112">📞 CHIAMA 112</a></div>`);
+  openSheet(`<div class="sos-panel"><div class="sos-kicker">SOS DELLA COMUNITÀ</div><h2 class="sos-title">🆘 AIUTO SUBITO</h2><p class="sos-copy">Non devi compilare niente. Da questo momento l'SOS è attivo: se non lo annulli, tra 30 secondi viene inviata la tua posizione agli utenti con le notifiche attive.</p><div class="notice yellow" style="margin-top:10px"><b>Emergenza medica o pericolo immediato?</b> Chiama sempre il <b>112</b>. Tanto Ci Vai non sostituisce i soccorsi ufficiali.</div><div class="sos-countdown"><strong id="sosSeconds">${sec}</strong><span id="sosCountdownText">secondi prima dell'invio automatico</span></div><div id="sosGpsBox" class="sos-gps ${TCV_SOS_POS?'ok':''}"><span class="dot"></span><div id="sosGpsText">${TCV_SOS_POS?`GPS acquisito · ${esc(TCV_SOS_POS.label||'posizione pronta')}`:'Sto cercando la posizione GPS…'}</div></div><div class="sos-presets-title">SE RIESCI, TOCCA IL MOTIVO · L'SOS PARTE SUBITO</div><div class="sos-presets"><button type="button" class="sos-preset" onclick="tcvSosPreset('Auto in panne / macchina ferma',this)">🚗<b>Auto in panne</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Casa allagata / perdita acqua',this)">💧<b>Casa allagata</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Malore / mi sento male',this)">❤️<b>Mi sento male</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Caduta / mi sono fatto male',this)">🩹<b>Caduta / ferita</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Sono bloccato / mi serve una mano',this)">🚪<b>Sono bloccato</b></button><button type="button" class="sos-preset" onclick="tcvSosPreset('Altro aiuto urgente',this)">🆘<b>Altro aiuto</b></button></div><div class="field"><label>COSA SUCCEDE? · FACOLTATIVO</label><textarea id="sosMessage" rows="2" maxlength="180" placeholder="Puoi lasciare vuoto" oninput="tcvSosMessageChanged()"></textarea></div><div id="sosStatus" class="notice green">✓ SOS armato. Puoi inviarlo subito, annullarlo oppure fermare il countdown per compilare con calma.</div><div class="sos-big-actions"><button class="sos-pause" onclick="tcvPauseSosForReport()">⏸ FERMA COUNTDOWN / SEGNALA CON CALMA</button><button class="sos-send-now" onclick="tcvSendSosNow(false)">🆘 INVIA SUBITO</button><button class="sos-cancel" onclick="tcvCancelSos()">ANNULLA SOS</button><button class="sos-other" onclick="tcvOpenOtherHelp()">📍 AIUTO PER UN'ALTRA PERSONA</button></div><a class="sos-112" href="tel:112">📞 CHIAMA 112</a></div>`);
   tcvLockSosOverlay(true);
 }
 async function openCommunityHelp(){
@@ -1874,7 +1921,7 @@ async function tcvSendSosNow(automatic=false){
   try{
     const {data,error}=await db.functions.invoke('send-help-push',{body});if(error)throw error;if(data?.error)throw new Error(data.error);
     TCV_SOS_ARMED=false;clearInterval(TCV_SOS_TIMER);TCV_SOS_TIMER=null;tcvLockSosOverlay(false);
-    openSheet(`<div class="sos-panel"><div class="sos-kicker">SOS INVIATO</div><h2 class="sos-title">✓ Aiuto richiesto</h2><div class="notice green">La richiesta è partita agli utenti con notifiche attive${TCV_SOS_POS?' con la tua posizione GPS':''}. Notifiche recapitate: <b>${Number(data?.sent||0)}</b>.</div><div class="notice yellow" style="margin-top:9px">Se stai male o sei in pericolo, non aspettare la comunità: chiama il <b>112</b>.</div><a class="sos-112" href="tel:112">📞 CHIAMA 112</a><button class="btn outline full" style="margin-top:9px" onclick="closeSheet()">Chiudi</button></div>`)
+    tcvShowAlertSuccess('sos')
   }catch(e){TCV_SOS_SENDING=false;if(st)st.innerHTML=`⚠️ Non riesco a confermare l'invio: ${esc(e?.message||String(e))}. Premi INVIA SUBITO oppure chiama il 112.`}
 }
 async function tcvCancelSos(){
@@ -1924,7 +1971,7 @@ async function tcvUseGpsForHazard(){
 }
 async function tcvSendHazard(){
   const st=document.getElementById('hazardStatus'),msg=document.getElementById('hazardMessage')?.value.trim()||'';if(!msg){if(st)st.textContent='Scrivi o scegli che tipo di pericolo vuoi segnalare.';return}if(!TCV_HAZARD_POS){if(st)st.textContent='Prima indica sulla mappa dove si trova il pericolo.';return}if(st)st.textContent='⚠️ Invio segnalazione…';
-  try{const {data,error}=await db.functions.invoke('send-help-push',{body:{action:'hazard',message:msg,lat:TCV_HAZARD_POS.lat,lng:TCV_HAZARD_POS.lng,location_label:TCV_HAZARD_POS.label||''}});if(error)throw error;if(data?.error)throw new Error(data.error);if(st)st.innerHTML=`✓ <b>Pericolo segnalato.</b> Notifiche recapitate: ${Number(data?.sent||0)}.`}catch(e){if(st)st.textContent='Segnalazione non riuscita: '+(e?.message||e)}
+  try{const {data,error}=await db.functions.invoke('send-help-push',{body:{action:'hazard',message:msg,lat:TCV_HAZARD_POS.lat,lng:TCV_HAZARD_POS.lng,location_label:TCV_HAZARD_POS.label||''}});if(error)throw error;if(data?.error)throw new Error(data.error);tcvShowAlertSuccess('hazard')}catch(e){if(st)st.textContent='Segnalazione non riuscita: '+(e?.message||e)}
 }
 async function tcvOpenOtherHelp(){
   if(TCV_SOS_ARMED&&TCV_SOS_ALERT_ID){
@@ -1958,7 +2005,7 @@ async function tcvUseGpsForOtherHelp(){
 async function tcvSendOtherHelp(){
   const st=document.getElementById('helpOtherStatus');if(!TCV_OTHER_HELP_POS){if(st)st.textContent='Prima devi indicare sulla mappa dove si trova la persona.';return}
   const msg=document.getElementById('helpOtherMessage')?.value.trim()||'';if(st)st.textContent='🆘 Invio richiesta di aiuto…';
-  try{const {data,error}=await db.functions.invoke('send-help-push',{body:{action:'other',message:msg,lat:TCV_OTHER_HELP_POS.lat,lng:TCV_OTHER_HELP_POS.lng,location_label:TCV_OTHER_HELP_POS.label||''}});if(error)throw error;if(data?.error)throw new Error(data.error);if(st)st.innerHTML=`✓ <b>Aiuto inviato in quella posizione.</b> Notifiche recapitate: ${Number(data?.sent||0)}.`}catch(e){if(st)st.textContent='Invio non riuscito: '+(e?.message||e)}
+  try{const {data,error}=await db.functions.invoke('send-help-push',{body:{action:'other',message:msg,lat:TCV_OTHER_HELP_POS.lat,lng:TCV_OTHER_HELP_POS.lng,location_label:TCV_OTHER_HELP_POS.label||''}});if(error)throw error;if(data?.error)throw new Error(data.error);tcvShowAlertSuccess('help')}catch(e){if(st)st.textContent='Invio non riuscito: '+(e?.message||e)}
 }
 
 
