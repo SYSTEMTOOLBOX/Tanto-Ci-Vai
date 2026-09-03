@@ -309,13 +309,17 @@ textarea{min-height:110px}
 @media(max-width:380px){.sos-topbar{grid-template-columns:.7fr 1.3fr}.sos-topbar .sos-stop-top,.sos-home-top{font-size:13px}}
 
 
+
+/* TCV_SOS_RESOLUTION_V1 */
+#homeCommunityAlarm:empty{display:none}.home-community-alarm{width:100%;border:0;border-radius:24px;padding:18px;margin:2px 0 16px;text-align:left;box-shadow:0 14px 34px rgba(7,26,61,.18);font-weight:900}.home-community-alarm.active{background:linear-gradient(135deg,#b90f22,#e42b3f);color:#fff;animation:tcvHomeAlarmPulse 1.2s infinite}.home-community-alarm.resolved{background:linear-gradient(135deg,#15854e,#22b56d);color:#fff}.home-community-alarm .alarm-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.home-community-alarm .alarm-icon{font-size:42px}.home-community-alarm .alarm-title{font-size:25px;line-height:1;letter-spacing:-.04em}.home-community-alarm .alarm-sub{display:block;font-size:12px;line-height:1.35;margin-top:8px;opacity:.96}.home-community-alarm .alarm-go{display:inline-block;margin-top:12px;padding:8px 11px;border-radius:999px;background:rgba(255,255,255,.18);font-size:11px}.community-marker.resolved{background:#20ad69;color:#fff;animation:none}.map-key-dot.resolved{background:#20ad69}.sos-detail-state{padding:12px;border-radius:16px;margin:10px 0;font-size:12px;font-weight:900;text-align:center}.sos-detail-state.active{background:#fff0f1;color:#a51020;border:2px solid #efb3ba}.sos-detail-state.resolved{background:#eafff2;color:#176b45;border:2px solid #b9ebd2}.sos-resolution-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0}.sos-resolution-progress i{height:9px;border-radius:99px;background:#e4e9f0}.sos-resolution-progress i.on{background:#20ad69}.sos-resolve-btn{width:100%;border:0;border-radius:16px;padding:14px;background:#20ad69;color:#fff;font-weight:950;font-size:13px}.sos-resolve-btn:disabled{opacity:.65}.sos-owner-close{width:100%;border:2px solid #d92132;border-radius:16px;padding:13px;background:#fff;color:#b21324;font-weight:950;font-size:13px;margin-top:8px}@keyframes tcvHomeAlarmPulse{0%,100%{transform:scale(1);box-shadow:0 14px 34px rgba(185,15,34,.25),0 0 0 0 rgba(217,33,50,.26)}50%{transform:scale(1.012);box-shadow:0 14px 34px rgba(185,15,34,.35),0 0 0 10px rgba(217,33,50,0)}}
+
 </style>
 </head>
 <body>
 <div id="authView" class="authwrap"><section class="authcard"><div class="authlogo">📍</div><h1>Tanto ci vai?</h1><p>Accedi oppure crea il profilo per chiedere una mano o prendere una commissione.</p><div class="tabs"><button id="loginTab" class="tab on" onclick="setAuthMode('login')">Accedi</button><button id="signupTab" class="tab" onclick="setAuthMode('signup')">Registrati</button></div><div id="signupFields" class="hidden"><div class="field"><label>NOME</label><input id="authName" autocomplete="name" placeholder="Il tuo nome"></div><div class="field"><label>TELEFONO</label><input id="authPhone" inputmode="tel" autocomplete="tel" placeholder="Numero di telefono"></div></div><div class="field"><label>EMAIL</label><input id="authEmail" type="email" autocomplete="email" placeholder="nome@email.it"></div><div class="field"><label>PASSWORD</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Minimo 6 caratteri"></div><button id="authBtn" class="btn teal full" onclick="submitAuth()">Accedi</button><div id="authStatus" class="status">La sessione resta salvata sul dispositivo in modo sicuro tramite Supabase Auth.</div></section></div>
 
 <div id="appView" class="app hidden"><header class="top"><div class="toprow"><div class="brand"><div class="logo">📦</div><div><b>Tanto ci vai?</b><small id="userLabel">Rete di prossimità locale</small></div></div><button id="avatar" class="avatar" onclick="page('profile')">TC</button></div><div class="loc"><span id="liveLocation">📍 Posizione non condivisa</span><span id="syncBadge" class="pilot">● ONLINE</span></div></header>
-<main id="home" class="home-clean"><div class="home-sos-wrap"><button class="home-sos-round" onclick="openCommunityHelp()" aria-label="SOS aiuto subito"><span class="home-sos-icon">🆘</span><b>SOS</b><small>30 SEC</small></button></div><section class="home-clean-actions"><button class="home-clean-action pickup" onclick="page('available')"><span class="home-clean-ico">📦</span><div><b>Fai un ritiro</b><small>Vedi le richieste disponibili</small></div><span class="home-clean-arrow">→</span></button><button class="home-clean-action trip" onclick="openTripSearch()"><span class="home-clean-ico">🚗</span><div><b>Sto già andando</b><small>Trova richieste sulla tua strada</small></div><span class="home-clean-arrow">→</span></button><button class="home-clean-action helpme" onclick="openNewRequest()"><span class="home-clean-ico">🙋</span><div><b>Mi serve una mano</b><small>Pubblica una richiesta</small></div><span class="home-clean-arrow">→</span></button></section></main>
+<main id="home" class="home-clean"><section id="homeCommunityAlarm"></section><div class="home-sos-wrap"><button class="home-sos-round" onclick="openCommunityHelp()" aria-label="SOS aiuto subito"><span class="home-sos-icon">🆘</span><b>SOS</b><small>30 SEC</small></button></div><section class="home-clean-actions"><button class="home-clean-action pickup" onclick="page('available')"><span class="home-clean-ico">📦</span><div><b>Fai un ritiro</b><small>Vedi le richieste disponibili</small></div><span class="home-clean-arrow">→</span></button><button class="home-clean-action trip" onclick="openTripSearch()"><span class="home-clean-ico">🚗</span><div><b>Sto già andando</b><small>Trova richieste sulla tua strada</small></div><span class="home-clean-arrow">→</span></button><button class="home-clean-action helpme" onclick="openNewRequest()"><span class="home-clean-ico">🙋</span><div><b>Mi serve una mano</b><small>Pubblica una richiesta</small></div><span class="home-clean-arrow">→</span></button></section></main>
 <main id="available" class="hidden"><div class="pagehead"><div class="k">RITIRI DISPONIBILI</div><h2>📦 Fai un ritiro</h2><p>Qui trovi le richieste aperte della comunità.</p></div><button class="btn outline full" style="margin-bottom:12px" onclick="page('home')">← Torna alla Home</button><div class="sect"><h2>Richieste disponibili</h2><span id="feedStatus">Sincronizzate</span></div><section id="feed" class="feed"></section></main>
 <main id="missions" class="hidden"></main><main id="myreq" class="hidden"></main><main id="mapPage" class="hidden"></main><main id="wallet" class="hidden"></main><main id="profile" class="hidden"></main></div>
 <nav id="bottomNav" class="bottom hidden"><button class="nav active" data-p="home" onclick="page('home')">⌂<small>Home</small></button><button class="nav" data-p="missions" onclick="page('missions')">⇄<small>Missioni</small></button><button class="nav" onclick="openNewRequest()"><span style="color:var(--blue);font-size:26px">＋</span><small>Richiedi</small></button><button class="nav" data-p="myreq" onclick="page('myreq')">☷<small>Le mie</small></button><button class="nav" data-p="mapPage" onclick="page('mapPage')">⌖<small>Mappa</small></button></nav>
@@ -1441,7 +1445,7 @@ async function acceptRequest(id){
   await loadRequests();renderAll();closeSheet();page('missions')
 }
 async function setStatus(id,status){let before=status==='consegnata'?walletTrackedTotal():null;let {data,error}=await db.rpc('aggiorna_stato_consegna',{p_consegna_id:id,p_stato:status});if(error){alert(error.message);return}if(!data){alert('Operazione non consentita o stato già cambiato.');return}if(status==='ritirata')await tcvSendLifecyclePush(id,'picked_up');await loadRequests();if(status==='consegnata')await loadWallet();renderAll();if(status==='consegnata')tcvMaybeShowWalletMilestone(before,walletTrackedTotal())}
-function page(p){['home','available','missions','myreq','mapPage','wallet','profile'].forEach(x=>{document.getElementById(x).classList.toggle('hidden',x!==p);document.querySelector(`[data-p="${x}"]`)?.classList.toggle('active',x===p)});if(p==='available')renderFeed();if(p==='missions')renderMissions();if(p==='myreq')renderMyRequests();if(p==='mapPage')renderMapPage();if(p==='wallet'){renderWallet();loadWallet().then(renderWallet).catch(e=>console.warn(e))}if(p==='profile')renderProfile();scrollTo(0,0)}
+function page(p){['home','available','missions','myreq','mapPage','wallet','profile'].forEach(x=>{document.getElementById(x).classList.toggle('hidden',x!==p);document.querySelector(`[data-p="${x}"]`)?.classList.toggle('active',x===p)});if(p==='home')loadCommunityAlerts();if(p==='available')renderFeed();if(p==='missions')renderMissions();if(p==='myreq')renderMyRequests();if(p==='mapPage')renderMapPage();if(p==='wallet'){renderWallet();loadWallet().then(renderWallet).catch(e=>console.warn(e))}if(p==='profile')renderProfile();scrollTo(0,0)}
 function renderMissions(){let arr=REQUESTS.filter(r=>r.rider_id===SESSION.user.id&&r.stato!=='annullata');missions.innerHTML=`<div class="pagehead"><div class="k">LE TUE ATTIVITÀ</div><h2>Missioni</h2><p>Commissioni che hai accettato.</p></div>${walletMiniCard()}${arr.length?arr.map(card).join(''):'<div class="empty">Non hai ancora missioni assegnate.</div>'}`}
 function renderMyRequests(){let arr=REQUESTS.filter(r=>r.cliente_id===SESSION.user.id);myreq.innerHTML=`<div class="pagehead"><div class="k">RICHIESTE PUBBLICATE</div><h2>Le mie richieste</h2><p>Stato reale delle commissioni che hai inserito.</p></div>${arr.length?arr.map(card).join(''):'<div class="empty">Non hai ancora pubblicato richieste.</div>'}`}
 function renderProfile(){let pushState=tcvPushStatusText();profile.innerHTML=`<div class="pagehead"><div class="k">PROFILO</div><h2>${esc(PROFILE.nome||'Profilo')}</h2><p>${esc(SESSION.user.email||'')}</p></div>${walletMiniCard()}<div class="req"><div class="field"><label>NOME</label><input id="pfName" value="${esc(PROFILE.nome||'')}"></div><div class="field"><label>TELEFONO</label><input id="pfPhone" value="${esc(PROFILE.telefono||'')}"></div><button class="btn teal full" onclick="saveProfile()">Salva profilo</button><button class="btn outline full" style="margin-top:8px" onclick="logout()">Esci dall'account</button></div><div class="req" style="margin-top:10px"><h3>🔔 Notifiche attività</h3><p id="pushProfileStatus">${esc(pushState)}</p><button class="btn primary full" style="margin-top:9px" onclick="tcvEnablePush(true)">Attiva notifiche</button><button class="btn outline full" style="margin-top:7px" onclick="tcvDisablePush()">Disattiva su questo telefono</button></div><div class="req" style="margin-top:10px"><h3>↗ Condividi Tanto Ci Vai</h3><p>Invita una persona della tua zona a entrare nella rete della comunità.</p><button class="btn teal full" style="margin-top:9px" onclick="tcvShareApp()">Condividi app</button></div><div class="notice green" style="margin-top:10px">✓ Profilo, richieste e missioni sono salvati online in modo sicuro.</div>`}
@@ -1648,32 +1652,79 @@ async function loadCommunityAlerts(){
     if(st)st.textContent='Aggiorno pericoli e richieste di aiuto…';
     const {data,error}=await db.functions.invoke('get-community-alerts',{body:{}});if(error)throw error;if(data?.error)throw new Error(data.error);
     COMMUNITY_ALERTS=Array.isArray(data?.alerts)?data.alerts.filter(a=>Number.isFinite(+a.lat)&&Number.isFinite(+a.lng)):[];
-    const hazards=COMMUNITY_ALERTS.filter(a=>a.kind==='hazard').length,helps=COMMUNITY_ALERTS.length-hazards;
-    if(st)st.innerHTML=`Aggiornata ora · <b>${hazards}</b> pericoli · <b>${helps}</b> richieste di assistenza`;
-  }catch(e){COMMUNITY_ALERTS=[];if(st)st.textContent='Ritiri aggiornati. Avvisi comunità momentaneamente non disponibili.';console.warn('Community alerts map',e)}
+    const hazards=COMMUNITY_ALERTS.filter(a=>a.kind==='hazard').length;
+    const active=COMMUNITY_ALERTS.filter(a=>a.kind!=='hazard'&&!a.resolved_at).length;
+    const resolved=COMMUNITY_ALERTS.filter(a=>a.kind!=='hazard'&&a.resolved_at).length;
+    if(st)st.innerHTML=`Aggiornata ora · <b>${hazards}</b> pericoli · <b>${active}</b> SOS attivi · <b>${resolved}</b> risolti`;
+    renderHomeCommunityAlarm();
+  }catch(e){COMMUNITY_ALERTS=[];renderHomeCommunityAlarm();if(st)st.textContent='Ritiri aggiornati. Avvisi comunità momentaneamente non disponibili.';console.warn('Community alerts map',e)}
 }
-function communityAlertIcon(kind){
-  const hazard=kind==='hazard';
-  return L.divIcon({className:'community-marker-wrap',html:`<div class="community-marker ${hazard?'hazard':'help'}">${hazard?'⚠':'🆘'}</div>`,iconSize:[46,46],iconAnchor:[23,23],popupAnchor:[0,-25]})
+/* TCV_HOME_SOS_POLL_V1 */
+setInterval(()=>{if(SESSION&&!document.getElementById('home')?.classList.contains('hidden'))loadCommunityAlerts()},12000);
+function renderHomeCommunityAlarm(){
+  const host=document.getElementById('homeCommunityAlarm');if(!host)return;
+  const helps=COMMUNITY_ALERTS.filter(a=>a.kind!=='hazard');
+  const active=helps.filter(a=>!a.resolved_at).sort((a,b)=>new Date(b.sent_at||b.created_at)-new Date(a.sent_at||a.created_at));
+  const resolved=helps.filter(a=>a.resolved_at).sort((a,b)=>new Date(b.resolved_at)-new Date(a.resolved_at));
+  const a=active[0]||resolved[0];if(!a){host.innerHTML='';return}
+  const isResolved=!!a.resolved_at,more=(isResolved?resolved:active).length-1;
+  const where=String(a.location_label||'').trim();
+  host.innerHTML=`<button class="home-community-alarm ${isResolved?'resolved':'active'}" onclick="openCommunityAlertDetail('${a.id}')"><div class="alarm-top"><span class="alarm-icon">${isResolved?'✅':'🆘'}</span><span class="alarm-title">${isResolved?'SOS RISOLTO':'SOS ATTIVO'}</span></div><span class="alarm-sub">${esc(a.sender_name||'Un utente')}${where?' · '+esc(where):''}${more>0?` · +${more} altro${more>1?'i':''}`:''}</span><span class="alarm-go">${isResolved?'3 conferme · vedi dettagli':'TOCCA QUI · VAI DIRETTAMENTE ALL’SOS →'}</span></button>`;
+}
+function communityAlertIcon(a){
+  const hazard=a.kind==='hazard',resolved=!hazard&&!!a.resolved_at;
+  return L.divIcon({className:'community-marker-wrap',html:`<div class="community-marker ${hazard?'hazard':(resolved?'resolved':'help')}">${hazard?'⚠':(resolved?'✓':'🆘')}</div>`,iconSize:[46,46],iconAnchor:[23,23],popupAnchor:[0,-25]})
 }
 function openCommunityAlertMaps(lat,lng){
   const url=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${lat},${lng}`)}&dir_action=navigate`;
   window.open(url,'_blank')
 }
 function communityAlertPopup(a){
-  const hazard=a.kind==='hazard',title=hazard?'⚠️ PERICOLO SEGNALATO':'🆘 ASSISTENZA IMMEDIATA';
+  const hazard=a.kind==='hazard',resolved=!hazard&&!!a.resolved_at;
+  const title=hazard?'⚠️ PERICOLO SEGNALATO':(resolved?'✅ SOS RISOLTO':'🆘 ASSISTENZA IMMEDIATA');
   const msg=String(a.message||'').trim()||(hazard?'Pericolo segnalato dalla comunità':'Richiesta urgente di aiuto');
   const where=String(a.location_label||'').trim();
-  return `<div class="community-popup"><b>${title}</b><div class="msg">${esc(msg)}</div>${where?`<div class="where">📍 ${esc(where)}</div>`:''}<div class="where">Segnalato da ${esc(a.sender_name||'un utente')}</div><button onclick="openCommunityAlertMaps(${Number(a.lat)},${Number(a.lng)})">🧭 INDICAZIONI</button></div>`
+  const votes=!hazard?`<div class="where">Conferme risoluzione: ${Math.min(3,Number(a.resolution_count||0))}/3</div>`:'';
+  return `<div class="community-popup"><b>${title}</b><div class="msg">${esc(msg)}</div>${where?`<div class="where">📍 ${esc(where)}</div>`:''}<div class="where">Segnalato da ${esc(a.sender_name||'un utente')}</div>${votes}<button onclick="openCommunityAlertDetail('${a.id}')">APRI SOS</button><button onclick="openCommunityAlertMaps(${Number(a.lat)},${Number(a.lng)})">🧭 INDICAZIONI</button></div>`
 }
+function sosResolutionBars(n){n=Math.max(0,Math.min(3,Number(n||0)));return `<div class="sos-resolution-progress">${[1,2,3].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div>`}
+function openCommunityAlertDetail(id){
+  const a=COMMUNITY_ALERTS.find(x=>String(x.id)===String(id));if(!a)return;
+  if(a.kind==='hazard'){openCommunityAlertMaps(a.lat,a.lng);return}
+  const resolved=!!a.resolved_at,count=Math.min(3,Number(a.resolution_count||0)),where=String(a.location_label||'').trim();
+  const state=`<div class="sos-detail-state ${resolved?'resolved':'active'}">${resolved?'✅ SOS RISOLTO':'🆘 SOS ATTIVO'} · ${count}/3 conferme</div>${sosResolutionBars(count)}`;
+  const vote=resolved?'':`<button class="sos-resolve-btn" ${a.viewer_voted?'disabled':''} onclick="tcvVoteSosResolved('${a.id}')">${a.viewer_voted?'✓ HAI GIÀ SEGNALATO RISOLTO':'✓ SEGNALA SOS RISOLTO'}</button>`;
+  const owner=a.is_owner?`<button class="sos-owner-close" onclick="tcvOwnerCloseSos('${a.id}')">✕ TOGLI IL MIO SOS SUBITO</button>`:'';
+  openSheet(`${head(resolved?'SOS RISOLTO':'ASSISTENZA IMMEDIATA',resolved?'✅ Situazione risolta':'🆘 Richiesta SOS',resolved?'Tre persone hanno confermato la risoluzione. Rimarrà verde per 24 ore.':'Serve assistenza: verifica la situazione prima di segnalarla come risolta.')}${state}<div class="notice" style="margin-top:10px"><b>${esc(a.message||'Richiesta urgente di aiuto')}</b>${where?`<br>📍 ${esc(where)}`:''}<br>Segnalato da ${esc(a.sender_name||'un utente')}</div><button class="btn primary full" style="margin-top:10px" onclick="openCommunityAlertMaps(${Number(a.lat)},${Number(a.lng)})">🧭 VAI AL PUNTO SOS</button>${vote}${owner}<button class="btn outline full" style="margin-top:8px" onclick="tcvFocusCommunityAlert('${a.id}')">⌖ VEDI SULLA MAPPA</button>`)
+}
+async function tcvVoteSosResolved(id){
+  try{
+    const {data,error}=await db.functions.invoke('manage-help-alert',{body:{action:'vote_resolved',alert_id:id}});if(error)throw error;if(data?.error)throw new Error(data.error);
+    await loadCommunityAlerts();if(!document.getElementById('mapPage')?.classList.contains('hidden'))renderMapPage();
+    const a=COMMUNITY_ALERTS.find(x=>String(x.id)===String(id));
+    if(data?.resolved)alert('✅ Tre persone hanno confermato: SOS RISOLTO.');
+    if(a)openCommunityAlertDetail(id);else closeSheet();
+  }catch(e){alert('Non riesco a registrare la conferma: '+String(e?.message||e))}
+}
+async function tcvOwnerCloseSos(id){
+  if(!confirm('Togliere subito questo SOS? Sparirà immediatamente dalla comunità.'))return;
+  try{
+    const {data,error}=await db.functions.invoke('manage-help-alert',{body:{action:'owner_close',alert_id:id}});if(error)throw error;if(data?.error)throw new Error(data.error);
+    closeSheet();await loadCommunityAlerts();if(!document.getElementById('mapPage')?.classList.contains('hidden'))renderMapPage();alert('✓ SOS rimosso subito.');
+  }catch(e){alert('Non riesco a rimuovere il SOS: '+String(e?.message||e))}
+}
+function tcvFocusCommunityAlert(id){
+  const a=COMMUNITY_ALERTS.find(x=>String(x.id)===String(id));if(!a)return;closeSheet();page('mapPage');setTimeout(()=>{if(MAP){MAP.setView([Number(a.lat),Number(a.lng)],16)}},500)
+}
+
 function renderMapPage(){
-  mapPage.innerHTML=`<div class="pagehead"><div class="k">MAPPA LIVE</div><h2>Mappa della comunità</h2><p>Qui vedi ritiri, pericoli segnalati e richieste di assistenza immediata.</p></div><div class="map-community-legend"><span><i class="map-key-dot pickup"></i> Ritiro</span><span><i class="map-key-dot hazard"></i> Attenzione / pericolo</span><span><i class="map-key-dot help"></i> Assistenza immediata</span></div><div id="mapAlertStatus" class="notice" style="margin-bottom:9px">Aggiorno la mappa…</div><button class="gpsbtn" onclick="locateMe()">📍 Aggiorna la mia posizione</button><div class="map-shell"><div id="map"></div><button id="mapPlanChip" class="map-plan-chip hidden" onclick="expandMapPlanPanel()">🧭 Giro</button><div id="mapPlanPanel" class="map-plan-sheet hidden"></div></div>`;
+  mapPage.innerHTML=`<div class="pagehead"><div class="k">MAPPA LIVE</div><h2>Mappa della comunità</h2><p>Qui vedi ritiri, pericoli segnalati e richieste di assistenza immediata.</p></div><div class="map-community-legend"><span><i class="map-key-dot pickup"></i> Ritiro</span><span><i class="map-key-dot hazard"></i> Attenzione / pericolo</span><span><i class="map-key-dot help"></i> SOS attivo</span><span><i class="map-key-dot resolved"></i> SOS risolto</span></div><div id="mapAlertStatus" class="notice" style="margin-bottom:9px">Aggiorno la mappa…</div><button class="gpsbtn" onclick="locateMe()">📍 Aggiorna la mia posizione</button><div class="map-shell"><div id="map"></div><button id="mapPlanChip" class="map-plan-chip hidden" onclick="expandMapPlanPanel()">🧭 Giro</button><div id="mapPlanPanel" class="map-plan-sheet hidden"></div></div>`;
   loadCommunityAlerts().finally(()=>setTimeout(()=>{initMap();setTimeout(recalculateMapPlan,100)},60))
 }
 function initMap(){
   if(MAP){MAP.remove();MAP=null}MAP_PLAN_ROUTE_LAYER=null;MAP=L.map('map').setView([45.18,7.99],11);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(MAP);let pts=[];
   REQUESTS.filter(r=>requestOpen(r)&&r.cliente_id!==SESSION.user.id&&r.ritiro_lat&&r.ritiro_lng).forEach(r=>{let ll=[r.ritiro_lat,r.ritiro_lng];pts.push(ll);let marker=L.marker(ll).addTo(MAP);let inPlan=MAP_PLAN_IDS.includes(r.id);marker.bindTooltip(`📦 ${inPlan?'✓ ':''}${esc(r.titolo)} · ${euro(r.compenso_rider)}`,{direction:'top'});marker.on('click',()=>openMapOffer(r.id))});
-  COMMUNITY_ALERTS.forEach(a=>{const ll=[Number(a.lat),Number(a.lng)];pts.push(ll);L.marker(ll,{icon:communityAlertIcon(a.kind),zIndexOffset:a.kind==='hazard'?700:1000}).addTo(MAP).bindPopup(communityAlertPopup(a),{maxWidth:290})});
+  COMMUNITY_ALERTS.forEach(a=>{const ll=[Number(a.lat),Number(a.lng)];pts.push(ll);L.marker(ll,{icon:communityAlertIcon(a),zIndexOffset:a.kind==='hazard'?700:1000}).addTo(MAP).bindPopup(communityAlertPopup(a),{maxWidth:290})});
   if(USER_POS){L.circleMarker([USER_POS.lat,USER_POS.lng],{radius:8,weight:4,fillOpacity:.9}).addTo(MAP).bindPopup('La tua posizione')}
   if(pts.length&&!MAP_PLAN_IDS.length)MAP.fitBounds(pts,{padding:[30,30],maxZoom:14})
 }
