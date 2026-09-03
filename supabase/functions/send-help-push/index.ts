@@ -62,7 +62,7 @@ async function dispatchAlert(admin: any, alertId: string, userId: string, sender
     const what = String(claimed.message || '').trim() || defaultWhat;
     const title = isHazard ? '⚠️ PERICOLO SEGNALATO' : (claimed.kind === 'other' ? '🆘 AIUTO PER UNA PERSONA' : '🆘 SOS · AIUTO SUBITO');
     const mapUrl = hasPoint
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${claimed.lat},${claimed.lng}`)}`
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${claimed.lat},${claimed.lng}`)}&dir_action=navigate`
       : './';
     const suffix = isHazard ? ' Fai attenzione se passi in zona.' : ' Se è un’emergenza chiama il 112.';
     const payload = JSON.stringify({

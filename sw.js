@@ -5,7 +5,7 @@ self.addEventListener('push',event=>{
   let data={};
   try{data=event.data?event.data.json():{}}catch(e){data={title:'Tanto Ci Vai',body:event.data?.text()||'Hai una nuova notifica'}}
   const title=data.title||'Tanto Ci Vai';
-  const isHelp=data.event==='help_alert';
+  const isHelp=data.event==='help_alert'||data.event==='hazard_alert';
   const options={
     body:data.body||'Hai una nuova richiesta.',
     icon:'assets/tcv-splash-logo.jpg',
@@ -35,7 +35,7 @@ self.addEventListener('notificationclick',event=>{
   const url=data.url||'./';
   const requestId=data.request_id||null;
   event.waitUntil((async()=>{
-    if(data.event==='help_alert'&&url&&url!=='./'){
+    if((data.event==='help_alert'||data.event==='hazard_alert')&&url&&url!=='./'){
       if(self.clients.openWindow)await self.clients.openWindow(url);
       return;
     }
