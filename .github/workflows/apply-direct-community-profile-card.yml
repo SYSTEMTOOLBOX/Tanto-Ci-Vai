@@ -1,0 +1,44 @@
+name: Apply direct Community profile card
+
+on:
+  push:
+    paths:
+      - 'scripts/apply_direct_community_profile_card.py'
+      - '.github/workflows/apply-direct-community-profile-card.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Embed Community profile card directly
+        run: python scripts/apply_direct_community_profile_card.py
+      - name: Validate JavaScript
+        run: |
+          node --check community-ui-v2.js
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert 'id="tcvCommunityProfileMainCard"' in s
+          assert '📸 CREA / MODIFICA PROFILO COMMUNITY' in s
+          assert 'community-ui-v2.js?v=4' in s
+          print('Direct profile card present')
+          PY
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html community-ui-v2.js
+          git commit -m "Embed Community profile card directly [skip ci]"
+          git push
