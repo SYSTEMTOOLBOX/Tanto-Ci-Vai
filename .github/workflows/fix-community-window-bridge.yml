@@ -1,0 +1,40 @@
+name: Fix Community window bridge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fix-community-window-bridge.py'
+      - '.github/workflows/fix-community-window-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install Community global bridge
+        run: python scripts/fix-community-window-bridge.py
+      - name: Validate inline app JavaScript markers
+        run: |
+          grep -q 'TCV_COMMUNITY_WINDOW_BRIDGE_V1' index.html
+          grep -q "window.db=db" index.html
+          grep -q "Object.defineProperty(window,'SESSION'" index.html
+          grep -q "community-safety.js?v=2" index.html
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo 'No changes needed'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Fix Community profile access bridge [skip ci]'
+          git push
