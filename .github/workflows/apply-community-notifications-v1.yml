@@ -1,0 +1,39 @@
+name: Apply Community notifications v1
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'community-notifications.js'
+      - 'scripts/apply_community_notifications_v1.py'
+      - '.github/workflows/apply-community-notifications-v1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Wire Community notifications
+        run: python scripts/apply_community_notifications_v1.py
+      - name: Validate Community notifications JavaScript
+        run: node --check community-notifications.js
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Enable Community ride notifications [skip ci]"
+          git push
