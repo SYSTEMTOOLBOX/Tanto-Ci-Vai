@@ -4,6 +4,15 @@
   if(window.TCV_COMMUNITY_UI_V3)return;
   window.TCV_COMMUNITY_UI_V3=true;
 
+  function loadCommunityDocumentsModule(){
+    if(window.TCV_COMMUNITY_DOCUMENTS_V1||document.querySelector('script[data-tcv-community-documents]'))return;
+    const s=document.createElement('script');
+    s.src='./community-documents.js?v=1';
+    s.async=true;
+    s.dataset.tcvCommunityDocuments='1';
+    document.head.appendChild(s)
+  }
+
   function wireHeaderProfile(){
     const btn=document.getElementById('avatar');
     if(!btn)return;
@@ -78,6 +87,7 @@
   }
 
   function install(){
+    loadCommunityDocumentsModule();
     wireHeaderProfile();
 
     const oldPage=window.page;
@@ -118,7 +128,7 @@
   let tries=0;const timer=setInterval(()=>{
     tries++;
     if(typeof window.page==='function'&&typeof window.renderMapPage==='function'){
-      clearInterval(timer);install();
-    }else if(tries>80)clearInterval(timer);
+      clearInterval(timer);install()
+    }else if(tries>80)clearInterval(timer)
   },200);
 })();
