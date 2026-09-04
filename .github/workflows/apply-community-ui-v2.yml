@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'community-ui-v2.js'
+      - 'community-document-ui-fix.js'
       - 'scripts/apply_community_ui_v2.py'
       - '.github/workflows/apply-community-ui-v2.yml'
 
@@ -25,7 +26,9 @@ jobs:
       - name: Wire Community UI v2
         run: python scripts/apply_community_ui_v2.py
       - name: Validate Community UI JavaScript
-        run: node --check community-ui-v2.js
+        run: |
+          node --check community-ui-v2.js
+          node --check community-document-ui-fix.js
       - name: Commit changes
         run: |
           if git diff --quiet; then
@@ -35,5 +38,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Move Community profile to main profile [skip ci]"
+          git commit -m "Wire Community document UI fix [skip ci]"
           git push
