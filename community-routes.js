@@ -1,4 +1,5 @@
 /* TCV_COMMUNITY_ROUTES_V1
+   TCV_PUBLIC_PROFILE_BUTTON_V1
    TCV_TWO_STAGE_LOCATION_V1
    TCV_CAP_CONSISTENCY_V1
    TCV_TOWN_PREFIX_FIX_V1
@@ -494,7 +495,7 @@
   };
 
   function tripPopup(t){
-    const c=antiProfitContribution(t.distance_km,Number(t.seats||1)),per=c.perPerson;return `<div class="tcv-map-popup"><b>🚗 GIRO COMMUNITY ATTIVO</b><div class="row"><strong>${safe(t.from_label)} → ${safe(t.to_label)}</strong></div><div class="row">👤 <b>Viaggiatore: ${safe(t.driver_name||'Utente')}</b> · 👥 ${Number(t.seats||1)} posti</div><div class="row">📏 ${num(t.distance_km).toFixed(1)} km · 💶 ${money(per)} / persona · anti-profitto</div><div class="row">🗓️ ${scheduleText(t.schedule,true)}</div><div class="row">Servizio TCV: ${money(PLATFORM_FEE)} separato</div><button onclick="tcvOpenRideFromTrip('${t.id}')">RICHIEDI UN POSTO</button></div>`
+    const c=antiProfitContribution(t.distance_km,Number(t.seats||1)),per=c.perPerson;return `<div class="tcv-map-popup"><b>🚗 GIRO COMMUNITY ATTIVO</b><div class="row"><strong>${safe(t.from_label)} → ${safe(t.to_label)}</strong></div><div class="row">👤 <b>Viaggiatore: ${safe(t.driver_name||'Utente')}</b> · 👥 ${Number(t.seats||1)} posti</div><div class="row">📏 ${num(t.distance_km).toFixed(1)} km · 💶 ${money(per)} / persona · anti-profitto</div><div class="row">🗓️ ${scheduleText(t.schedule,true)}</div><div class="row">Servizio TCV: ${money(PLATFORM_FEE)} separato</div><button style="background:#fff;color:#0b66ff;border:1px solid #b9d2ff" onclick="tcvOpenCommunityUserProfile('${t.user_id}')">👤 VEDI PROFILO</button><button onclick="tcvOpenRideFromTrip('${t.id}')">RICHIEDI UN POSTO</button></div>`
   }
 
   window.renderMapPage=function(){
