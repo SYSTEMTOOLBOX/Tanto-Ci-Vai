@@ -28,7 +28,7 @@
   async function injectMainProfileCommunityCard(){
     const host=document.getElementById('profile');
     if(!host||host.classList.contains('hidden')||!window.SESSION?.user?.id)return;
-    if(document.getElementById('tcvMainCommunityProfileCard'))return;
+    if(document.getElementById('tcvCommunityProfileMainCard')||document.getElementById('tcvMainCommunityProfileCard'))return;
 
     let p=null;
     try{
