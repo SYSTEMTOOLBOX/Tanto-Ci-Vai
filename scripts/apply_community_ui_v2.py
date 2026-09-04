@@ -1,11 +1,28 @@
 from pathlib import Path
+import re
 
 p=Path('index.html')
 s=p.read_text(encoding='utf-8')
-marker='<script src="./community-profile.js?v=1"></script>'
-insert=marker+'\n<script src="./community-ui-v2.js?v=1"></script>'
-if 'community-ui-v2.js' not in s:
-    if marker not in s:
-        raise SystemExit('community-profile script marker not found')
-    s=s.replace(marker,insert,1)
+
+profile_pattern=r'<script src="\./community-profile\.js\?v=\d+"></script>'
+ui_pattern=r'<script src="\./community-ui-v2\.js\?v=\d+"></script>'
+fix_pattern=r'<script src="\./community-document-ui-fix\.js\?v=\d+"></script>'
+
+profile_match=re.search(profile_pattern,s)
+if not profile_match:
+    raise SystemExit('community-profile script marker not found')
+
+ui_tag='<script src="./community-ui-v2.js?v=5"></script>'
+fix_tag='<script src="./community-document-ui-fix.js?v=1"></script>'
+
+if re.search(ui_pattern,s):
+    s=re.sub(ui_pattern,ui_tag,s,count=1)
+else:
+    s=s.replace(profile_match.group(0),profile_match.group(0)+'\n'+ui_tag,1)
+
+if re.search(fix_pattern,s):
+    s=re.sub(fix_pattern,fix_tag,s,count=1)
+else:
+    s=s.replace(ui_tag,ui_tag+'\n'+fix_tag,1)
+
 p.write_text(s,encoding='utf-8')
