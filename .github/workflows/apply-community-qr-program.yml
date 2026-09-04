@@ -1,0 +1,35 @@
+name: Apply Community QR program
+
+on:
+  push:
+    paths:
+      - 'scripts/apply_community_qr_program.py'
+      - '.github/workflows/apply-community-qr-program.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Wire Community QR program
+        run: python scripts/apply_community_qr_program.py
+      - name: Validate Community QR JavaScript
+        run: node --check community-qr.js
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html community-qr.js
+          git commit -m "Enable free Community QR profile confirmation [skip ci]"
+          git push
