@@ -377,6 +377,11 @@ const SUPABASE_URL='https://qdsphfmcibrveygkmyex.supabase.co';
 const SUPABASE_KEY='sb_publishable_Ltkh4jRJnihqwzhUCNYPYg_WN47PO13';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let AUTH_MODE='login',SESSION=null,PROFILE=null,REQUESTS=[],CHANNEL=null,MAP=null,USER_POS=null,MAP_PLAN_IDS=[],MAP_PLAN_START=null,MAP_PLAN_ROUTE=null,MAP_PLAN_ROUTE_LAYER=null,PHARMACY_MAP=null,PHARMACY_RESULTS=[],SHOP_MAP=null,SHOP_RESULTS=[],SHOP_BASE_RESULTS=[],SHOP_LIVE_SEARCH_ID=0,SHOP_FILTER='supermarket',SELECTED_PLACE=null,PICKUP_MAP=null,PICKUP_MARKER=null,PICKUP_POINT=null,HOME_POS=null,SEARCH_POS=null,FAVORITES=[],NAV_MAP=null,NAV_ROUTE_LAYER=null,NAV_WATCH=null,NAV_ROUTE=null,NAV_MODE='car',NAV_MARKER=null,NAV_REQUEST=null,DELIVERY_MAP=null,DELIVERY_MARKER=null,DELIVERY_CITY_RESULTS=[],DELIVERY_STREET_RESULTS=[],DELIVERY_TIMER=null,DELIVERY_CITY_POS=null,WALLET_ENTRIES=[],WALLET_YEAR_ROW=null,COMMUNITY_ALERTS=[],MY_SOS=[],MY_RIDES=[];
+/* TCV_COMMUNITY_WINDOW_BRIDGE_V1 */
+window.db=db;
+Object.defineProperty(window,'SESSION',{configurable:true,get:()=>SESSION});
+Object.defineProperty(window,'PROFILE',{configurable:true,get:()=>PROFILE});
+
 const euro=n=>'€ '+Number(n||0).toFixed(2).replace('.',',');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* ORDER_NUMBERS_V1 */
@@ -2622,8 +2627,8 @@ tcvHandleSatispayReturn=async function(attempt=0){
 </script>
 
 <script src="./community-routes.js?v=8"></script>
-<script src="./community-safety.js?v=1"></script>
-<script src="./community-profile.js?v=1"></script>
+<script src="./community-safety.js?v=2"></script>
+<script src="./community-profile.js?v=2"></script>
 <script src="./community-ui-v2.js?v=4"></script>
 <script src="./community-notifications.js?v=1"></script>
 </body>
