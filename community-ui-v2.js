@@ -13,6 +13,15 @@
     document.head.appendChild(s)
   }
 
+  function loadCommunityDocumentUiFix(){
+    if(window.TCV_COMMUNITY_DOCUMENT_UI_FIX_V1||document.querySelector('script[data-tcv-community-document-ui-fix]'))return;
+    const s=document.createElement('script');
+    s.src='./community-document-ui-fix.js?v=1';
+    s.async=true;
+    s.dataset.tcvCommunityDocumentUiFix='1';
+    document.head.appendChild(s)
+  }
+
   function wireHeaderProfile(){
     const btn=document.getElementById('avatar');
     if(!btn)return;
@@ -88,6 +97,7 @@
 
   function install(){
     loadCommunityDocumentsModule();
+    loadCommunityDocumentUiFix();
     wireHeaderProfile();
 
     const oldPage=window.page;
