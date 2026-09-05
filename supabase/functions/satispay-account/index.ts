@@ -17,9 +17,10 @@ async function digest(body:string){const hash=await crypto.subtle.digest('SHA-25
 const admin=()=>createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 let CACHE:any=null;
 async function creds(){if(CACHE)return CACHE;const{data,error}=await admin().rpc('get_satispay_credentials_for_service');if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row?.key_id||!row?.private_key)throw new Error('Satispay Sandbox non ancora attivato');CACHE={keyId:String(row.key_id),privatePem:String(row.private_key)};return CACHE}
-async function headers(method:string,path:string,body:string){const c=await creds();const date=new Date().toUTCString();const dg=await digest(body);const msg=`(request-target): ${method.toLowerCase()} ${path}\nhost: ${HOST}\ndate: ${date}\ndigest: ${dg}`;const key=await crypto.subtle.importKey('pkcs8',pemToBytes(c.privatePem),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);const sig=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(msg));return{host:HOST,date,digest:dg,authorization:`Signature keyId="${c.keyId}", algorithm="rsa-sha256", headers="(request-target) host date digest", signature="${b64(new Uint8Array(sig))}"`,'content-type':'application/json',accept:'application/json','x-satispay-devicetype':'ECOMMERCE_PLUGIN','x-satispay-apph':'Kairon Labs Studio','x-satispay-appn':'Tanto Ci Vai','x-satispay-appv':'sandbox-account-confirm-v1'}}
-async function sat(method:string,path:string,bodyObject?:unknown,idempotencyKey?:string){const body=bodyObject==null?'':JSON.stringify(bodyObject);const h:any=await headers(method,path,body);if(idempotencyKey)h['idempotency-key']=idempotencyKey;const res=await fetch(`${BASE}${path}`,{method,headers:h,body:body||undefined});const text=await res.text();let data:any;try{data=text?JSON.parse(text):{}}catch{data={raw:text}}if(!res.ok)throw new Error(`Satispay ${res.status}: ${data?.message||text||'errore API'}`);return data}
-async function syncPublic(db:any,userId:string,status:string,confirmedAt:string|null){await db.from('community_public_profiles').update({account_confirmed:status==='ACCEPTED',account_confirmed_at:confirmedAt}).eq('user_id',userId)}
+async function authHeaders(method:string,path:string,body:string){const c=await creds();const date=new Date().toUTCString();const dg=await digest(body);const msg=`(request-target): ${method.toLowerCase()} ${path}\nhost: ${HOST}\ndate: ${date}\ndigest: ${dg}`;const key=await crypto.subtle.importKey('pkcs8',pemToBytes(c.privatePem),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);const sig=await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(msg));return{host:HOST,date,digest:dg,authorization:`Signature keyId="${c.keyId}", algorithm="rsa-sha256", headers="(request-target) host date digest", signature="${b64(new Uint8Array(sig))}"`,'content-type':'application/json',accept:'application/json','x-satispay-devicetype':'ECOMMERCE_PLUGIN','x-satispay-apph':'Kairon Labs Studio','x-satispay-appn':'Tanto Ci Vai','x-satispay-appv':'sandbox-account-confirm-v2'}}
+class SatispayError extends Error{status:number;code:any;constructor(status:number,message:string,code:any=null){super(message);this.status=status;this.code=code}}
+async function sat(method:string,path:string,bodyObject?:unknown,idempotencyKey?:string){const body=bodyObject==null?'':JSON.stringify(bodyObject);const h:any=await authHeaders(method,path,body);if(idempotencyKey)h['idempotency-key']=idempotencyKey;const res=await fetch(`${BASE}${path}`,{method,headers:h,body:body||undefined});const text=await res.text();let data:any;try{data=text?JSON.parse(text):{}}catch{data={raw:text}}if(!res.ok)throw new SatispayError(res.status,String(data?.message||text||'errore API'),data?.code??null);return data}
+async function syncPublic(db:any,userId:string,status:string,confirmedAt:string|null){const{error}=await db.from('community_public_profiles').update({account_confirmed:status==='ACCEPTED',account_confirmed_at:confirmedAt}).eq('user_id',userId);if(error)throw error}
 
 Deno.serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:corsHeaders});
@@ -47,12 +48,24 @@ Deno.serve(async(req)=>{
       const{data:existing,error:readErr}=await db.from('community_satispay_accounts').select('authorization_id,status').eq('user_id',user.id).maybeSingle();if(readErr)throw readErr;
       if(existing?.authorization_id&&existing.status==='ACCEPTED')return json({ok:true,status:'ACCEPTED',confirmed:true});
       const idem=`tcv-account-${user.id}-${crypto.randomUUID()}`;
-      const a=await sat('POST','/g_business/v1/pre_authorized_payment_tokens',{reason:'Conferma account Tanto Ci Vai',callback_url:CALLBACK,redirect_url:RETURN_URL,metadata:{tcv_user_id:user.id,environment:'sandbox',purpose:'community_account_confirmation'}},idem);
+      const a=await sat('POST','/g_business/v1/pre_authorized_payment_tokens',{
+        reason:'Conferma account Tanto Ci Vai',
+        callback_url:CALLBACK,
+        redirect_url:RETURN_URL
+      },idem);
       const status=String(a.status||'PENDING').toUpperCase();
       const{error}=await db.from('community_satispay_accounts').upsert({user_id:user.id,authorization_id:String(a.id),consumer_uid:a.consumer_uid||null,status,sandbox:true,updated_at:new Date().toISOString(),confirmed_at:status==='ACCEPTED'?new Date().toISOString():null},{onConflict:'user_id'});if(error)throw error;
-      return json({ok:true,status,confirmed:status==='ACCEPTED',authorization_id:a.id,redirect_url:a.redirect_url||null});
+      return json({ok:true,sandbox:true,status,confirmed:status==='ACCEPTED',authorization_id:a.id,redirect_url:a.redirect_url||null});
     }
 
     return json({error:'Azione non valida'},400);
-  }catch(e){console.error('satispay-account fatal',String((e as any)?.message||e));return json({error:String((e as any)?.message||e)},500)}
+  }catch(e){
+    const err=e as any;
+    console.error('satispay-account fatal',String(err?.message||err));
+    if(err instanceof SatispayError){
+      const status=err.status>=400&&err.status<500?err.status:502;
+      return json({error:`Satispay ${err.status}: ${err.message}`,satispay_status:err.status,satispay_code:err.code},status);
+    }
+    return json({error:String(err?.message||err)},500);
+  }
 });
