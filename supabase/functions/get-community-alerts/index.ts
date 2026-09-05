@@ -16,6 +16,8 @@ const HAZARD_MAX_LOOKBACK_MS = 30 * DAY_MS;
 
 function hazardMaxAgeMs(message: unknown) {
   const m = String(message || '').toLowerCase();
+  if (m.includes('furto in corso')) return 2 * HOUR_MS;
+  if (m.includes('tentato furto')) return 24 * HOUR_MS;
   if (m.includes('buca') || m.includes('dissesto')) return 30 * DAY_MS;
   if (m.includes('albero') || m.includes('ostacolo')) return 72 * HOUR_MS;
   if (m.includes('allagat') || m.includes('acqua sulla carreggiata')) return 24 * HOUR_MS;
