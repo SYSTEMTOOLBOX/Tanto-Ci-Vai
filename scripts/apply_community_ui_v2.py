@@ -23,7 +23,7 @@ qr_tag='<script src="./community-qr.js?v=2"></script>'
 account_tag='<script src="./community-phone-verification.js?v=6"></script>'
 satispay_status_tag='<script src="./satispay-profile-status.js?v=2"></script>'
 compact_profile_tag='<script src="./community-profile-compact.js?v=1"></script>'
-photo_only_tag='<script src="./community-profile-photo-only.js?v=1"></script>'
+photo_only_tag='<script src="./community-profile-photo-only.js?v=2"></script>'
 
 if re.search(ui_pattern,s):
     s=re.sub(ui_pattern,ui_tag,s,count=1)
