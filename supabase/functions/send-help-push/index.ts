@@ -24,6 +24,15 @@ function cleanPoint(body: any) {
   };
 }
 
+function communityProfileReady(profile: any) {
+  return Boolean(
+    profile?.community_enabled &&
+    profile?.document_registered &&
+    String(profile?.display_name || '').trim() &&
+    String(profile?.avatar_url || '').trim()
+  );
+}
+
 async function dispatchAlert(admin: any, alertId: string, userId: string, senderName: string) {
   const { data: claimed, error: claimErr } = await admin
     .from('help_alerts')
@@ -71,6 +80,8 @@ async function dispatchAlert(admin: any, alertId: string, userId: string, sender
       event: isHazard ? 'hazard_alert' : 'help_alert',
       help_id: claimed.id,
       help_kind: claimed.kind,
+      sender_user_id: userId,
+      sender_name: senderName,
       lat: claimed.lat,
       lng: claimed.lng,
       url: mapUrl,
@@ -135,8 +146,23 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: profile } = await admin.from('profiles').select('nome').eq('id', user.id).maybeSingle();
-    const senderName = String(profile?.nome || 'Un utente').trim().slice(0, 60) || 'Un utente';
+
+    const { data: communityProfile, error: communityProfileErr } = await admin
+      .from('community_public_profiles')
+      .select('display_name,avatar_url,community_enabled,community_role,document_registered,document_kind')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (communityProfileErr) throw communityProfileErr;
+
+    const requiresRegistration = ['arm', 'other', 'hazard', 'send_now'].includes(action);
+    if (requiresRegistration && !communityProfileReady(communityProfile)) {
+      return json({ error: 'Prima di usare SOS e segnalazioni completa il Profilo Community con foto del volto e documento registrato.' }, 403);
+    }
+    if (requiresRegistration && communityProfile?.community_role === 'driver_passenger' && communityProfile?.document_kind !== 'driving_license') {
+      return json({ error: 'Il profilo guidatore richiede una patente registrata.' }, 403);
+    }
+
+    const senderName = String(communityProfile?.display_name || 'Un utente').trim().slice(0, 60) || 'Un utente';
 
     if (action === 'arm') {
       const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
