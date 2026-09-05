@@ -1,8 +1,8 @@
-/* TCV_COMMUNITY_PROFILE_COMPACT_V1 */
+/* TCV_COMMUNITY_PROFILE_COMPACT_V2 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_PROFILE_COMPACT_V1)return;
-  window.TCV_COMMUNITY_PROFILE_COMPACT_V1=true;
+  if(window.TCV_COMMUNITY_PROFILE_COMPACT_V2)return;
+  window.TCV_COMMUNITY_PROFILE_COMPACT_V2=true;
 
   let EXPANDED=false;
   let BUSY=false;
@@ -28,8 +28,10 @@
   }
 
   function isEnabled(p){
-    if(!p?.community_enabled||!p?.avatar_url||!String(p?.display_name||'').trim()||!p?.document_registered)return false;
-    if(p?.community_role==='driver_passenger'&&p?.document_kind!=='driving_license')return false;
+    // Community base: nome + foto + profilo attivo. Satispay e documenti non sono requisiti.
+    if(!p?.community_enabled||!p?.avatar_url||!String(p?.display_name||'').trim())return false;
+    // Solo chi vuole guidare deve avere una patente registrata.
+    if(p?.community_role==='driver_passenger'&&(!p?.document_registered||p?.document_kind!=='driving_license'))return false;
     return true;
   }
 
@@ -45,11 +47,19 @@
 
   function buildCard(p,sig){
     const name=String(p?.display_name||window.PROFILE?.nome||'Utente').trim();
-    const isDriver=p?.community_role==='driver_passenger';
-    const documentBadge=p?.document_kind==='driving_license'?'✅ Patente registrata':'✅ Documento registrato';
+    const role=String(p?.community_role||'');
+    const isDriver=role==='driver_passenger';
+    const isPassenger=role==='passenger';
+    const roleText=isDriver?'🚗 Guidatore + passeggero':isPassenger?'🙋 Passeggero':'🛡️ Membro Community';
+    const documentBadge=p?.document_registered
+      ?(p?.document_kind==='driving_license'?'✅ Patente registrata':'✅ Documento registrato')
+      :'';
     const satispay=!!window.PROFILE?.satispay_ready;
     const confirmed=!!p?.profile_confirmed;
     const rating=Number(p?.rating_count||0)>0?Number(p.rating_avg||0).toFixed(1):'—';
+    const activityText=(isDriver||isPassenger)
+      ?`${roleText} · ${Number(p?.completed_rides||0)} viaggi · ⭐ ${esc(rating)}`
+      :`${roleText} · SOS e mappa pericoli attivi`;
     return `
       <section id="tcvCompactCommunityProfile" data-tcv-compact-signature="${esc(sig)}" style="margin:10px 0 16px;padding:18px;border-radius:28px;background:linear-gradient(150deg,#eafff4,#f8fffb 60%,#eef8ff);border:2px solid #8ee0b9;box-shadow:0 16px 38px rgba(8,117,70,.12)">
         <div style="display:flex;gap:14px;align-items:center">
@@ -60,12 +70,12 @@
           <div style="min-width:0;flex:1">
             <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#0aa86b;color:#fff;font-size:9px;font-weight:1000;letter-spacing:.08em">✓ UTENTE COMMUNITY ABILITATO</div>
             <h2 style="margin:7px 0 2px;font-size:26px;line-height:1;letter-spacing:-.045em;color:#083b2a">${esc(name)}</h2>
-            <div style="font-size:10px;color:#4e7768;font-weight:800">${isDriver?'🚗 Guidatore + passeggero':'🙋 Passeggero'} · ${Number(p?.completed_rides||0)} viaggi · ⭐ ${esc(rating)}</div>
+            <div style="font-size:10px;color:#4e7768;font-weight:800">${activityText}</div>
           </div>
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:13px">
-          ${badge(documentBadge)}
+          ${documentBadge?badge(documentBadge):''}
           ${satispay?badge('✅ Satispay collegato'):''}
           ${confirmed?badge('✅ Riconosciuto dalla Community'):''}
         </div>
@@ -132,10 +142,10 @@
     openSheet(`${head('PROFILO COMMUNITY','⚙️ Gestisci profilo','Modifica solo ciò che ti serve. Il profilo principale resta semplice e ordinato.')}
       <div style="display:grid;gap:9px;margin-top:12px">
         <button class="btn teal full" style="padding:14px" onclick="closeSheet();typeof tcvOpenCommunitySafetyProfile==='function'?tcvOpenCommunitySafetyProfile():null">📷 CAMBIA FOTO E DATI</button>
-        <button class="btn outline full" style="padding:14px" onclick="closeSheet();typeof tcvOpenCommunityDocumentSetup==='function'?tcvOpenCommunityDocumentSetup():null">🪪 GESTISCI DOCUMENTO / PATENTE</button>
+        <button class="btn outline full" style="padding:14px" onclick="closeSheet();typeof tcvOpenCommunityDocumentSetup==='function'?tcvOpenCommunityDocumentSetup():null">🪪 DOCUMENTO / PATENTE · SE SERVE</button>
         <button class="btn outline full" style="padding:14px" onclick="closeSheet();tcvShowFullProfileSettings()">⚙️ ALTRE IMPOSTAZIONI</button>
       </div>
-      <div class="notice green" style="margin-top:11px"><b>Il tuo QR resta sempre a portata di mano</b><br>Le impostazioni tecniche sono nascoste finché non ti servono.</div>
+      <div class="notice green" style="margin-top:11px"><b>Community libera da pagamenti obbligatori</b><br>SOS, mappa pericoli, segnalazioni e QR Community funzionano anche senza Satispay. Patente e pagamenti servono solo per le funzioni che li richiedono.</div>
       <button class="btn outline full" style="margin-top:9px" onclick="closeSheet()">Chiudi</button>`);
   };
 
