@@ -34,6 +34,12 @@
     document.getElementById('tcvMapSafetyBtn')?.remove();
   }
 
+  function cleanProfileWallet(){
+    const host=document.getElementById('profile');
+    if(!host)return;
+    host.querySelectorAll('.wallet-mini').forEach(el=>el.remove());
+  }
+
   function openCommunityProfileEditor(){
     if(typeof window.tcvOpenCommunitySafetyProfile==='function'){
       window.tcvOpenCommunitySafetyProfile();
@@ -90,9 +96,10 @@
   }
 
   function scheduleProfileInjection(){
-    setTimeout(injectMainProfileCommunityCard,0);
-    setTimeout(injectMainProfileCommunityCard,120);
-    setTimeout(injectMainProfileCommunityCard,500);
+    const run=()=>{cleanProfileWallet();injectMainProfileCommunityCard()};
+    setTimeout(run,0);
+    setTimeout(run,120);
+    setTimeout(run,500);
   }
 
   function install(){
