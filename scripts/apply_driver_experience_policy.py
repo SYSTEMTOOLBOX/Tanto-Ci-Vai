@@ -77,7 +77,7 @@ s = s.replace('/* TCV_COMMUNITY_REGISTRATION_GATES_V1', '/* TCV_COMMUNITY_REGIST
 s = must_replace(
     s,
     "driver.querySelector('small').textContent='Puoi offrire e ricevere passaggi. Patente obbligatoria e almeno 5 anni dalla categoria B.';",
-    s"driver.querySelector('small').textContent='Puoi offrire e ricevere passaggi. Patente B valida obbligatoria; mostriamo da quanto tempo guidi.';",
+    "driver.querySelector('small').textContent='Puoi offrire e ricevere passaggi. Patente B valida obbligatoria; mostriamo da quanto tempo guidi.';",
     'registration driver copy',
 )
 p.write_text(s, encoding='utf-8')
