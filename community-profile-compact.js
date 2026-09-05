@@ -1,12 +1,13 @@
-/* TCV_COMMUNITY_PROFILE_COMPACT_V3 */
+/* TCV_COMMUNITY_PROFILE_COMPACT_V4 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_PROFILE_COMPACT_V3)return;
-  window.TCV_COMMUNITY_PROFILE_COMPACT_V3=true;
+  if(window.TCV_COMMUNITY_PROFILE_COMPACT_V4)return;
+  window.TCV_COMMUNITY_PROFILE_COMPACT_V4=true;
 
   let EXPANDED=false;
   let BUSY=false;
   let LAST_STATE=null;
+  let INSTALLED=false;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -28,10 +29,7 @@
   }
 
   function isEnabled(p){
-    // Community abilitata = account attivo, nome, foto riconoscibile e documento registrato.
-    // Satispay resta sempre facoltativo.
     if(!p?.community_enabled||!p?.avatar_url||!String(p?.display_name||'').trim()||!p?.document_registered)return false;
-    // Solo chi vuole guidare deve avere nello specifico una patente registrata.
     if(p?.community_role==='driver_passenger'&&p?.document_kind!=='driving_license')return false;
     return true;
   }
@@ -125,7 +123,7 @@
   async function refresh(){
     if(BUSY)return;
     const host=document.getElementById('profile');
-    if(!host||host.classList.contains('hidden'))return;
+    if(!host||host.classList.contains('hidden')||!window.SESSION?.user?.id)return;
     BUSY=true;
     try{
       const p=await loadState();
@@ -137,6 +135,7 @@
       }
     }finally{BUSY=false}
   }
+  window.tcvRefreshCompactCommunityProfile=refresh;
 
   window.tcvOpenCompactProfileManager=function(){
     if(typeof window.openSheet!=='function')return;
@@ -165,15 +164,21 @@
   };
 
   function install(){
+    if(INSTALLED)return;
+    INSTALLED=true;
     const host=document.getElementById('profile');
-    if(host)new MutationObserver(()=>setTimeout(refresh,50)).observe(host,{childList:true,subtree:false,attributes:true,attributeFilter:['class']});
+    if(host)new MutationObserver(()=>setTimeout(refresh,40)).observe(host,{childList:true,subtree:false,attributes:true,attributeFilter:['class']});
 
     const oldPage=window.page;
     if(typeof oldPage==='function'&&!oldPage.__tcvCompactProfile){
       const wrapped=function(which,...args){
         if(which!=='profile')EXPANDED=false;
         const out=oldPage.call(this,which,...args);
-        if(which==='profile')setTimeout(refresh,90);
+        if(which==='profile'){
+          setTimeout(refresh,0);
+          setTimeout(refresh,80);
+          setTimeout(refresh,300);
+        }
         return out;
       };
       wrapped.__tcvCompactProfile=true;
@@ -182,22 +187,37 @@
 
     const oldRender=window.renderProfile;
     if(typeof oldRender==='function'&&!oldRender.__tcvCompactProfile){
-      const wrapped=function(...args){const out=oldRender.apply(this,args);setTimeout(refresh,90);return out};
+      const wrapped=function(...args){
+        const out=oldRender.apply(this,args);
+        setTimeout(refresh,0);
+        setTimeout(refresh,90);
+        return out;
+      };
       wrapped.__tcvCompactProfile=true;
       window.renderProfile=wrapped;
     }
 
+    // Non dipende più dal fatto che la sessione sia pronta al caricamento dello script.
+    // Il modulo resta vivo per tutta la durata dell'app e si attiva appena SESSION è disponibile.
     setInterval(()=>{
-      if(!document.getElementById('profile')?.classList.contains('hidden'))refresh();
-    },2500);
-    setTimeout(refresh,140);
+      if(window.SESSION?.user?.id&&!document.getElementById('profile')?.classList.contains('hidden'))refresh();
+    },700);
+    setTimeout(refresh,80);
   }
 
   let tries=0;
   const timer=setInterval(()=>{
     tries++;
-    if(window.db&&window.SESSION&&typeof window.page==='function'&&typeof window.renderProfile==='function'){
+    if(window.db&&typeof window.page==='function'&&typeof window.renderProfile==='function'){
       clearInterval(timer);install();
-    }else if(tries>100)clearInterval(timer);
-  },180);
+    }else if(tries>200){
+      // Non abbandonare definitivamente: una PWA può ripristinare gli script/sessione in ritardo.
+      clearInterval(timer);
+      const late=setInterval(()=>{
+        if(window.db&&typeof window.page==='function'&&typeof window.renderProfile==='function'){
+          clearInterval(late);install();
+        }
+      },1000);
+    }
+  },100);
 })();
