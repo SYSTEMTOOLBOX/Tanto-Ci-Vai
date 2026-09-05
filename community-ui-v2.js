@@ -26,9 +26,9 @@
   }
 
   function loadCommunityPhoneVerification(){
-    if(window.TCV_COMMUNITY_PHONE_VERIFICATION_V1||document.querySelector('script[data-tcv-community-phone-verification]'))return;
+    if(window.TCV_COMMUNITY_ACCOUNT_CONFIRMATION_V1||window.TCV_COMMUNITY_PHONE_VERIFICATION_V1||document.querySelector('script[data-tcv-community-phone-verification]'))return;
     const s=document.createElement('script');
-    s.src='./community-phone-verification.js?v=1';
+    s.src='./community-phone-verification.js?v=2';
     s.async=true;
     s.dataset.tcvCommunityPhoneVerification='1';
     document.head.appendChild(s)
@@ -62,7 +62,8 @@
       'tcvMainCommunityProfileCard',
       'tcvCommunityDocumentCard',
       'tcvQrProfileActions',
-      'tcvPhoneVerifyAction'
+      'tcvPhoneVerifyAction',
+      'tcvAccountConfirmAction'
     ].forEach(id=>keepOnlyOne(host,id));
     host.querySelectorAll('.wallet-mini').forEach(el=>el.remove());
   }
@@ -95,7 +96,7 @@
       try{
         if(window.db){
           const {data}=await db.from('community_public_profiles')
-            .select('display_name,avatar_url,community_enabled,identity_verified,phone_verified,completed_rides,rating_avg,rating_count')
+            .select('display_name,avatar_url,community_enabled,identity_verified,account_confirmed,completed_rides,rating_avg,rating_count')
             .eq('user_id',SESSION.user.id).maybeSingle();
           p=data||null;
         }
