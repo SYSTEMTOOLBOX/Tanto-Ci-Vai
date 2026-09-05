@@ -1,8 +1,8 @@
-/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V4 */
+/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V5 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V4)return;
-  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V4=true;
+  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V5)return;
+  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V5=true;
 
   const BUCKET='community-avatars';
   const MAX_BYTES=5*1024*1024;
@@ -10,6 +10,7 @@
   const EXT_RE=/\.(jpe?g|png|webp)$/i;
   let SELECTED_FILE=null;
   let CAMERA_STREAM=null;
+  let CAMERA_OPENING=false;
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
   function bust(url){
@@ -25,6 +26,8 @@
     if(n.endsWith('.webp'))return 'image/webp';
     return 'image/jpeg';
   }
+  function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+  function timeoutPromise(ms,label){return new Promise((_,reject)=>setTimeout(()=>reject(new Error(label||'Timeout')),ms))}
 
   function compactPhotoButton(){
     return document.querySelector('#tcvCompactCommunityProfile button[aria-label="Gestisci foto profilo"],#tcvCompactCommunityProfile button[aria-label="Cambia foto profilo"]');
@@ -39,9 +42,15 @@
     st.textContent=text;
   }
   function stopCamera(){
+    CAMERA_OPENING=false;
     if(CAMERA_STREAM){
-      CAMERA_STREAM.getTracks().forEach(t=>t.stop());
+      try{CAMERA_STREAM.getTracks().forEach(t=>t.stop())}catch(_e){}
       CAMERA_STREAM=null;
+    }
+    const video=document.getElementById('tcvCompactLiveCamera');
+    if(video){
+      try{video.pause()}catch(_e){}
+      try{video.srcObject=null}catch(_e){}
     }
   }
   function wirePhotoButton(){
@@ -88,7 +97,7 @@
     const photo=currentPhoto();
     openSheet(`${head('FOTO PROFILO','📷 Cambia foto','Scatta una nuova foto oppure scegline una dalla galleria.')}
       <div style="display:flex;justify-content:center;margin:16px 0 14px">
-        <div id="tcvCompactPhotoPreview" style="width:150px;height:150px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#eef5f1;border:4px solid #fff;box-shadow:0 10px 28px rgba(8,117,70,.18)">
+        <div id="tcvCompactPhotoPreview" style="width:170px;height:170px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#eef5f1;border:4px solid #fff;box-shadow:0 10px 28px rgba(8,117,70,.18)">
           ${photo?`<img src="${esc(photo)}" alt="Foto attuale" style="width:100%;height:100%;object-fit:cover">`:'📷'}
         </div>
       </div>
@@ -101,7 +110,7 @@
       </div>
 
       <button id="tcvCompactCaptureNow" type="button" class="btn teal full" style="display:none;margin-top:10px;padding:14px" onclick="tcvCaptureCompactCamera()">📸 SCATTA ADESSO</button>
-      <div id="tcvCompactPhotoStatus" class="notice" style="margin-top:10px">Fotocamera e galleria sono separate. La fotocamera può chiedere il consenso la prima volta.</div>
+      <div id="tcvCompactPhotoStatus" class="notice" style="margin-top:10px">La fotocamera può chiedere il consenso la prima volta.</div>
       <button id="tcvCompactPhotoSave" class="btn teal full" style="margin-top:10px;padding:14px" onclick="tcvSaveCompactPhotoOnly()">✓ SALVA NUOVA FOTO</button>
       <button class="btn outline full" style="margin-top:8px" onclick="tcvCloseCompactPhotoOnly()">Chiudi</button>`);
   };
@@ -117,14 +126,7 @@
         const handles=await window.showOpenFilePicker({
           multiple:false,
           excludeAcceptAllOption:true,
-          types:[{
-            description:'Foto',
-            accept:{
-              'image/jpeg':['.jpg','.jpeg'],
-              'image/png':['.png'],
-              'image/webp':['.webp']
-            }
-          }]
+          types:[{description:'Foto',accept:{'image/jpeg':['.jpg','.jpeg'],'image/png':['.png'],'image/webp':['.webp']}}]
         });
         const file=handles?.[0]?await handles[0].getFile():null;
         if(file)useSelectedFile(file,'gallery');
@@ -143,39 +145,65 @@
     try{
       if(typeof input.showPicker==='function')input.showPicker();
       else input.click();
-    }catch(_e){
-      input.click();
-    }
+    }catch(_e){input.click()}
   };
 
   window.tcvStartCompactCamera=async function(){
+    if(CAMERA_OPENING)return;
     stopCamera();
     SELECTED_FILE=null;
+    CAMERA_OPENING=true;
+
     const preview=document.getElementById('tcvCompactPhotoPreview');
     const capture=document.getElementById('tcvCompactCaptureNow');
     const start=document.getElementById('tcvCompactStartCamera');
-    if(!preview)return;
+    if(!preview){CAMERA_OPENING=false;return}
 
     if(!navigator.mediaDevices?.getUserMedia){
-      setStatus('La fotocamera diretta non è disponibile su questo browser. Usa Galleria.','yellow');
+      CAMERA_OPENING=false;
+      setStatus('Fotocamera diretta non disponibile su questo telefono. Usa Galleria.','yellow');
       return;
     }
 
     if(start){start.disabled=true;start.innerHTML='📷<br><b>APRO…</b>'}
+    if(capture)capture.style.display='none';
     setStatus('Apro la fotocamera… Se richiesto, premi Consenti.','');
+
     try{
-      CAMERA_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:720},height:{ideal:720}},audio:false});
-      preview.innerHTML='<video id="tcvCompactLiveCamera" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>';
+      const mediaPromise=navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      const stream=await Promise.race([mediaPromise,timeoutPromise(9000,'La fotocamera non risponde.')]);
+      if(!CAMERA_OPENING){try{stream.getTracks().forEach(t=>t.stop())}catch(_e){};return}
+      CAMERA_STREAM=stream;
+
+      preview.innerHTML='<video id="tcvCompactLiveCamera" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#111"></video>';
       const video=document.getElementById('tcvCompactLiveCamera');
-      if(video){video.srcObject=CAMERA_STREAM;try{await video.play()}catch(_e){}}
+      if(!video)throw new Error('Anteprima fotocamera non disponibile.');
+      video.srcObject=stream;
+
+      const ready=new Promise((resolve,reject)=>{
+        let done=false;
+        const ok=()=>{if(done)return;done=true;resolve()};
+        video.onloadedmetadata=ok;
+        video.oncanplay=ok;
+        video.onerror=()=>{if(done)return;done=true;reject(new Error('Anteprima fotocamera non disponibile.'))};
+      });
+      try{await video.play()}catch(_e){}
+      await Promise.race([ready,timeoutPromise(5000,'La fotocamera si è avviata ma il video non risponde.')]);
+      await wait(150);
+
+      if(!video.videoWidth||!video.videoHeight)throw new Error('Il video della fotocamera non è pronto.');
       if(capture)capture.style.display='block';
       setStatus('Fotocamera pronta. Inquadrati e premi “Scatta adesso”.','green');
     }catch(e){
       stopCamera();
       const denied=e?.name==='NotAllowedError'||e?.name==='PermissionDeniedError';
-      setStatus(denied?'Permesso fotocamera negato. Consenti la fotocamera oppure usa Galleria.':'Non riesco ad aprire la fotocamera: '+(e?.message||e),'yellow');
+      const busy=e?.name==='NotReadableError'||e?.name==='TrackStartError';
+      if(denied)setStatus('Permesso fotocamera negato. Consenti la fotocamera oppure usa Galleria.','yellow');
+      else if(busy)setStatus('La fotocamera è occupata da un’altra app. Chiudila e riprova.','yellow');
+      else setStatus((e?.message||'Non riesco ad aprire la fotocamera.')+' Puoi comunque usare Galleria.','yellow');
       if(capture)capture.style.display='none';
     }finally{
+      CAMERA_OPENING=false;
       if(start){start.disabled=false;start.innerHTML='📷<br><b>SCATTA FOTO</b>'}
     }
   };
@@ -184,27 +212,28 @@
     const video=document.getElementById('tcvCompactLiveCamera');
     const preview=document.getElementById('tcvCompactPhotoPreview');
     const capture=document.getElementById('tcvCompactCaptureNow');
-    if(!video||!preview||!video.videoWidth||!video.videoHeight){
+    if(!video||!preview||video.readyState<2||!video.videoWidth||!video.videoHeight){
       setStatus('La fotocamera non è ancora pronta. Riprova tra un istante.','yellow');
       return;
     }
+    if(capture){capture.disabled=true;capture.textContent='📸 SCATTO…'}
     const size=Math.min(video.videoWidth,video.videoHeight);
     const sx=(video.videoWidth-size)/2;
     const sy=(video.videoHeight-size)/2;
     const canvas=document.createElement('canvas');
     canvas.width=720;canvas.height=720;
     const ctx=canvas.getContext('2d');
+    ctx.translate(720,0);ctx.scale(-1,1);
     ctx.drawImage(video,sx,sy,size,size,0,0,720,720);
     canvas.toBlob(blob=>{
+      if(capture){capture.disabled=false;capture.textContent='📸 SCATTA ADESSO'}
       if(!blob){setStatus('Non riesco a creare la foto. Riprova.','yellow');return}
       const file=new File([blob],`profilo-${Date.now()}.jpg`,{type:'image/jpeg'});
       useSelectedFile(file,'camera');
-    },'image/jpeg',0.9);
+    },'image/jpeg',0.88);
   };
 
-  window.tcvPreviewCompactPhotoOnly=function(input,source){
-    useSelectedFile(input?.files?.[0],source);
-  };
+  window.tcvPreviewCompactPhotoOnly=function(input,source){useSelectedFile(input?.files?.[0],source)};
 
   window.tcvSaveCompactPhotoOnly=async function(){
     const st=document.getElementById('tcvCompactPhotoStatus');
@@ -259,6 +288,8 @@
     wirePhotoButton();
     const host=document.getElementById('profile');
     if(host)new MutationObserver(()=>setTimeout(wirePhotoButton,20)).observe(host,{childList:true,subtree:true});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera()});
+    window.addEventListener('pagehide',stopCamera);
     setInterval(()=>{wirePhotoButton();if(CAMERA_STREAM&&!document.getElementById('tcvCompactLiveCamera'))stopCamera()},800);
   }
 
