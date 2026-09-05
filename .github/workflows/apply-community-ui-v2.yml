@@ -10,6 +10,8 @@ on:
       - 'satispay-profile-status.js'
       - 'community-profile-compact.js'
       - 'community-profile-photo-only.js'
+      - 'community-role-gates.js'
+      - 'community-registration-gates.js'
       - 'scripts/apply_community_ui_v2.py'
       - '.github/workflows/apply-community-ui-v2.yml'
 
@@ -37,6 +39,8 @@ jobs:
           node --check satispay-profile-status.js
           node --check community-profile-compact.js
           node --check community-profile-photo-only.js
+          node --check community-role-gates.js
+          node --check community-registration-gates.js
       - name: Commit changes
         run: |
           if git diff --quiet; then
@@ -46,5 +50,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Wire compact Community photo editor [skip ci]"
+          git commit -m "Wire Community registration gates [skip ci]"
           git push
