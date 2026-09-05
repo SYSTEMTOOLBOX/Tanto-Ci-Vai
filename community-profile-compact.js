@@ -35,7 +35,15 @@
 
   function badge(text){return `<span style="display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:#fff;border:1px solid #cceedd;color:#087348;font-size:9px;font-weight:950;white-space:nowrap">${esc(text)}</span>`}
 
-  function buildCard(p){
+  function stateSignature(p){
+    return JSON.stringify([
+      p?.display_name||'',p?.avatar_url||'',!!p?.community_enabled,!!p?.document_registered,
+      p?.document_kind||'',p?.community_role||'',!!p?.profile_confirmed,Number(p?.completed_rides||0),
+      Number(p?.rating_avg||0),Number(p?.rating_count||0),!!window.PROFILE?.satispay_ready,EXPANDED
+    ]);
+  }
+
+  function buildCard(p,sig){
     const name=String(p?.display_name||window.PROFILE?.nome||'Utente').trim();
     const isDriver=p?.community_role==='driver_passenger';
     const documentBadge=p?.document_kind==='driving_license'?'✅ Patente registrata':'✅ Documento registrato';
@@ -43,7 +51,7 @@
     const confirmed=!!p?.profile_confirmed;
     const rating=Number(p?.rating_count||0)>0?Number(p.rating_avg||0).toFixed(1):'—';
     return `
-      <section id="tcvCompactCommunityProfile" style="margin:10px 0 16px;padding:18px;border-radius:28px;background:linear-gradient(150deg,#eafff4,#f8fffb 60%,#eef8ff);border:2px solid #8ee0b9;box-shadow:0 16px 38px rgba(8,117,70,.12)">
+      <section id="tcvCompactCommunityProfile" data-tcv-compact-signature="${esc(sig)}" style="margin:10px 0 16px;padding:18px;border-radius:28px;background:linear-gradient(150deg,#eafff4,#f8fffb 60%,#eef8ff);border:2px solid #8ee0b9;box-shadow:0 16px 38px rgba(8,117,70,.12)">
         <div style="display:flex;gap:14px;align-items:center">
           <button type="button" onclick="tcvOpenCompactProfileManager()" style="border:0;background:transparent;padding:0;position:relative;flex:0 0 auto" aria-label="Gestisci foto profilo">
             ${avatarHtml(p)}
@@ -59,7 +67,7 @@
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:13px">
           ${badge(documentBadge)}
           ${satispay?badge('✅ Satispay collegato'):''}
-          ${confirmed?badge('✅ Riconosciuto dalla Community'):badge('🔳 QR da confermare')}
+          ${confirmed?badge('✅ Riconosciuto dalla Community'):''}
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px">
@@ -88,23 +96,19 @@
   function applyLayout(p){
     const host=document.getElementById('profile');
     if(!host||!isEnabled(p))return;
+    const sig=stateSignature(p);
     let card=document.getElementById('tcvCompactCommunityProfile');
-    const html=buildCard(p);
-    if(card){
-      const tmp=document.createElement('div');tmp.innerHTML=html.trim();
-      card.replaceWith(tmp.firstElementChild);
-      card=document.getElementById('tcvCompactCommunityProfile');
-    }else{
-      const tmp=document.createElement('div');tmp.innerHTML=html.trim();
-      card=tmp.firstElementChild;
-      host.prepend(card);
+
+    if(!card||card.dataset.tcvCompactSignature!==sig){
+      const tmp=document.createElement('div');tmp.innerHTML=buildCard(p,sig).trim();
+      const next=tmp.firstElementChild;
+      if(card)card.replaceWith(next);else host.prepend(next);
+      card=next;
     }
+
     [...host.children].forEach(el=>setHidden(el,!EXPANDED));
     card.style.display='block';
-    if(EXPANDED){
-      card.style.marginBottom='12px';
-      card.scrollIntoView({block:'start',behavior:'smooth'});
-    }
+    card.style.marginBottom=EXPANDED?'12px':'16px';
   }
 
   async function refresh(){
@@ -140,6 +144,7 @@
     const host=document.getElementById('profile');
     if(host)[...host.children].forEach(el=>setHidden(el,false));
     if(LAST_STATE)applyLayout(LAST_STATE);else refresh();
+    setTimeout(()=>document.getElementById('tcvCompactCommunityProfile')?.scrollIntoView({block:'start',behavior:'smooth'}),50);
   };
 
   window.tcvReturnToCompactProfile=function(){
@@ -150,14 +155,14 @@
 
   function install(){
     const host=document.getElementById('profile');
-    if(host)new MutationObserver(()=>setTimeout(refresh,40)).observe(host,{childList:true,subtree:false,attributes:true,attributeFilter:['class']});
+    if(host)new MutationObserver(()=>setTimeout(refresh,50)).observe(host,{childList:true,subtree:false,attributes:true,attributeFilter:['class']});
 
     const oldPage=window.page;
     if(typeof oldPage==='function'&&!oldPage.__tcvCompactProfile){
       const wrapped=function(which,...args){
         if(which!=='profile')EXPANDED=false;
         const out=oldPage.call(this,which,...args);
-        if(which==='profile')setTimeout(refresh,80);
+        if(which==='profile')setTimeout(refresh,90);
         return out;
       };
       wrapped.__tcvCompactProfile=true;
@@ -166,7 +171,7 @@
 
     const oldRender=window.renderProfile;
     if(typeof oldRender==='function'&&!oldRender.__tcvCompactProfile){
-      const wrapped=function(...args){const out=oldRender.apply(this,args);setTimeout(refresh,80);return out};
+      const wrapped=function(...args){const out=oldRender.apply(this,args);setTimeout(refresh,90);return out};
       wrapped.__tcvCompactProfile=true;
       window.renderProfile=wrapped;
     }
@@ -174,7 +179,7 @@
     setInterval(()=>{
       if(!document.getElementById('profile')?.classList.contains('hidden'))refresh();
     },2500);
-    setTimeout(refresh,120);
+    setTimeout(refresh,140);
   }
 
   let tries=0;
