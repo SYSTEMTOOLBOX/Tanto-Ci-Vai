@@ -16,6 +16,7 @@ role_gate_pattern=r'<script src="\./community-role-gates\.js\?v=\d+"></script>'
 registration_gate_pattern=r'<script src="\./community-registration-gates\.js\?v=\d+"></script>'
 driver_experience_pattern=r'<script src="\./community-driver-experience\.js\?v=\d+"></script>'
 public_readonly_pattern=r'<script src="\./community-public-profile-readonly\.js\?v=\d+"></script>'
+crime_alerts_pattern=r'<script src="\./community-crime-alerts\.js\?v=\d+"></script>'
 
 profile_match=re.search(profile_pattern,s)
 if not profile_match:
@@ -32,6 +33,7 @@ role_gate_tag='<script src="./community-role-gates.js?v=2"></script>'
 registration_gate_tag='<script src="./community-registration-gates.js?v=2"></script>'
 driver_experience_tag='<script src="./community-driver-experience.js?v=1"></script>'
 public_readonly_tag='<script src="./community-public-profile-readonly.js?v=1"></script>'
+crime_alerts_tag='<script src="./community-crime-alerts.js?v=1"></script>'
 
 if re.search(ui_pattern,s):
     s=re.sub(ui_pattern,ui_tag,s,count=1)
@@ -87,5 +89,10 @@ if re.search(public_readonly_pattern,s):
     s=re.sub(public_readonly_pattern,public_readonly_tag,s,count=1)
 else:
     s=s.replace(driver_experience_tag,driver_experience_tag+'\n'+public_readonly_tag,1)
+
+if re.search(crime_alerts_pattern,s):
+    s=re.sub(crime_alerts_pattern,crime_alerts_tag,s,count=1)
+else:
+    s=s.replace(public_readonly_tag,public_readonly_tag+'\n'+crime_alerts_tag,1)
 
 p.write_text(s,encoding='utf-8')
