@@ -9,6 +9,7 @@
   let SCANNED_TOKEN='';
   let PUBLIC_PROFILE_WRAPPED=false;
   let CLOSE_WRAPPED=false;
+  let OWN_PROFILE_DECORATING=false;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 
@@ -57,18 +58,41 @@
 
   async function decorateOwnProfileCard(){
     const card=document.getElementById('tcvPublicProfileCard');
-    if(!card||card.querySelector('#tcvQrProfileActions')||!window.SESSION?.user?.id)return;
-    const p=await loadConfirmation(SESSION.user.id);
-    const box=document.createElement('div');
-    box.id='tcvQrProfileActions';
-    box.style.marginTop='10px';
-    box.innerHTML=`<div id="tcvQrOwnBadge" style="margin-bottom:8px">${confirmationBadge(p||{})}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button class="btn primary" onclick="tcvOpenMyProfileQr()">🔳 IL MIO QR</button>
-        <button class="btn outline" onclick="tcvOpenProfileQrScanner()">📷 SCANSIONA QR</button>
-      </div>
-      <div class="notice" style="margin-top:8px">Nessun documento viene caricato: il QR serve solo a confermare dal vivo che la persona davanti a te corrisponde al profilo.</div>`;
-    card.appendChild(box);
+    if(!card||!window.SESSION?.user?.id)return;
+
+    const existing=[...card.querySelectorAll('#tcvQrProfileActions')];
+    if(existing.length){
+      existing.slice(1).forEach(el=>el.remove());
+      return;
+    }
+    if(OWN_PROFILE_DECORATING)return;
+
+    OWN_PROFILE_DECORATING=true;
+    try{
+      const p=await loadConfirmation(SESSION.user.id);
+      const liveCard=document.getElementById('tcvPublicProfileCard');
+      if(!liveCard)return;
+
+      const afterWait=[...liveCard.querySelectorAll('#tcvQrProfileActions')];
+      if(afterWait.length){
+        afterWait.slice(1).forEach(el=>el.remove());
+        return;
+      }
+
+      const box=document.createElement('div');
+      box.id='tcvQrProfileActions';
+      box.style.marginTop='10px';
+      box.innerHTML=`<div id="tcvQrOwnBadge" style="margin-bottom:8px">${confirmationBadge(p||{})}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn primary" onclick="tcvOpenMyProfileQr()">🔳 IL MIO QR</button>
+          <button class="btn outline" onclick="tcvOpenProfileQrScanner()">📷 SCANSIONA QR</button>
+        </div>
+        <div class="notice" style="margin-top:8px">Nessun documento viene caricato: il QR serve solo a confermare dal vivo che la persona davanti a te corrisponde al profilo.</div>`;
+      liveCard.appendChild(box);
+      [...liveCard.querySelectorAll('#tcvQrProfileActions')].slice(1).forEach(el=>el.remove());
+    }finally{
+      OWN_PROFILE_DECORATING=false;
+    }
   }
 
   async function decoratePublicProfile(userId){
@@ -191,7 +215,7 @@
       </div>
       <div class="notice"><b>Cosa significa</b><br>È una conferma della Community basata su foto + incontro dal vivo. Non equivale a verifica di documento, fedina penale o identità legale.</div>
       <button class="btn primary full" style="margin-top:10px" onclick="closeSheet()">FATTO</button>`);
-    setTimeout(()=>{document.getElementById('tcvQrProfileActions')?.remove();decorateOwnProfileCard()},100);
+    setTimeout(()=>{document.querySelectorAll('#tcvQrProfileActions').forEach(el=>el.remove());decorateOwnProfileCard()},100);
   };
 
   window.tcvHandleQrText=async function(raw){
