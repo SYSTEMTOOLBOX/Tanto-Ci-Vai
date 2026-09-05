@@ -34,39 +34,44 @@
     try{const s=await publicState(uid);decorateAccountBadge(document.getElementById('profile'),s.confirmed)}catch(e){console.warn('account badge',e)}
   }
 
+  async function edgeErrorDetail(error){
+    let detail=String(error?.message||error||'Errore Edge Function');
+    const ctx=error?.context;
+    if(!ctx)return detail;
+    try{
+      const response=typeof ctx.clone==='function'?ctx.clone():ctx;
+      if(typeof response.text==='function'){
+        const text=await response.text();
+        if(text){
+          try{
+            const payload=JSON.parse(text);
+            detail=String(payload?.error||payload?.message||text);
+          }catch(_){detail=String(text)}
+        }
+      }
+    }catch(_){ }
+    return detail.slice(0,300);
+  }
+
   async function invoke(action){
     const {data:{session},error:sessionError}=await db.auth.getSession();
     if(sessionError||!session?.access_token)throw new Error('Sessione scaduta. Chiudi e riapri Tanto Ci Vai.');
 
-    const base=String(db.supabaseUrl||'https://qdsphfmcibrveygkmyex.supabase.co').replace(/\/$/,'');
-    const key=String(db.supabaseKey||'');
-    const headers={
-      'Content-Type':'application/json',
-      'Authorization':`Bearer ${session.access_token}`
-    };
-    if(key)headers.apikey=key;
-
-    let response;
+    let result;
     try{
-      response=await fetch(`${base}/functions/v1/satispay-account`,{
-        method:'POST',
-        headers,
-        body:JSON.stringify({action}),
-        cache:'no-store'
-      });
+      result=await db.functions.invoke('satispay-account',{body:{action}});
     }catch(e){
-      throw new Error('Connessione al servizio Satispay non riuscita: '+(e?.message||e));
+      throw new Error('Connessione al servizio Satispay non riuscita: '+String(e?.message||e));
     }
 
-    const text=await response.text();
-    let payload={};
-    try{payload=text?JSON.parse(text):{}}catch(e){payload={raw:text}}
-    if(!response.ok){
-      const detail=payload?.error||payload?.message||payload?.raw||`Errore HTTP ${response.status}`;
-      throw new Error(`Satispay account ${response.status}: ${String(detail).slice(0,260)}`);
+    const data=result?.data;
+    const error=result?.error;
+    if(error){
+      const detail=await edgeErrorDetail(error);
+      throw new Error(detail);
     }
-    if(payload?.error)throw new Error(payload.error);
-    return payload||{};
+    if(data?.error)throw new Error(String(data.error));
+    return data||{};
   }
 
   window.tcvOpenAccountConfirmation=async function(){
