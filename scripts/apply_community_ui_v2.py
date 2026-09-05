@@ -22,7 +22,7 @@ fix_tag='<script src="./community-document-ui-fix.js?v=2"></script>'
 qr_tag='<script src="./community-qr.js?v=2"></script>'
 account_tag='<script src="./community-phone-verification.js?v=6"></script>'
 satispay_status_tag='<script src="./satispay-profile-status.js?v=2"></script>'
-compact_profile_tag='<script src="./community-profile-compact.js?v=1"></script>'
+compact_profile_tag='<script src="./community-profile-compact.js?v=2"></script>'
 photo_only_tag='<script src="./community-profile-photo-only.js?v=6"></script>'
 
 if re.search(ui_pattern,s):
