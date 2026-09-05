@@ -27,7 +27,7 @@ if not profile_match:
 ui_tag='<script src="./community-ui-v2.js?v=10"></script>'
 fix_tag='<script src="./community-document-ui-fix.js?v=2"></script>'
 qr_tag='<script src="./community-qr.js?v=2"></script>'
-qr_auth_tag='<script src="./community-qr-auth-fix.js?v=1"></script>'
+qr_auth_tag='<script src="./community-qr-auth-fix.js?v=2"></script>'
 account_tag='<script src="./community-phone-verification.js?v=6"></script>'
 satispay_status_tag='<script src="./satispay-profile-status.js?v=2"></script>'
 compact_profile_tag='<script src="./community-profile-compact.js?v=4"></script>'
