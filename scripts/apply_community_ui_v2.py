@@ -11,6 +11,7 @@ qr_pattern=r'<script src="\./community-qr\.js\?v=\d+"></script>'
 account_pattern=r'<script src="\./community-phone-verification\.js\?v=\d+"></script>'
 satispay_status_pattern=r'<script src="\./satispay-profile-status\.js\?v=\d+"></script>'
 compact_profile_pattern=r'<script src="\./community-profile-compact\.js\?v=\d+"></script>'
+photo_only_pattern=r'<script src="\./community-profile-photo-only\.js\?v=\d+"></script>'
 
 profile_match=re.search(profile_pattern,s)
 if not profile_match:
@@ -22,6 +23,7 @@ qr_tag='<script src="./community-qr.js?v=2"></script>'
 account_tag='<script src="./community-phone-verification.js?v=6"></script>'
 satispay_status_tag='<script src="./satispay-profile-status.js?v=2"></script>'
 compact_profile_tag='<script src="./community-profile-compact.js?v=1"></script>'
+photo_only_tag='<script src="./community-profile-photo-only.js?v=1"></script>'
 
 if re.search(ui_pattern,s):
     s=re.sub(ui_pattern,ui_tag,s,count=1)
@@ -52,5 +54,10 @@ if re.search(compact_profile_pattern,s):
     s=re.sub(compact_profile_pattern,compact_profile_tag,s,count=1)
 else:
     s=s.replace(satispay_status_tag,satispay_status_tag+'\n'+compact_profile_tag,1)
+
+if re.search(photo_only_pattern,s):
+    s=re.sub(photo_only_pattern,photo_only_tag,s,count=1)
+else:
+    s=s.replace(compact_profile_tag,compact_profile_tag+'\n'+photo_only_tag,1)
 
 p.write_text(s,encoding='utf-8')
