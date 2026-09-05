@@ -46,7 +46,7 @@ new_block = r'''  function splitName(v){const p=String(v||'').trim().replace(/\s
   window.tcvCommunityLicenseExperienceText=licenseExperienceText;
 '''
 
-s2, n = pattern.subn(new_block, s, count=1)
+s2, n = pattern.subn(lambda _m: new_block, s, count=1)
 if n != 1:
     raise SystemExit('Could not replace old five-year driver eligibility block')
 s = s2
