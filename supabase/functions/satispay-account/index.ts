@@ -46,7 +46,7 @@ Deno.serve(async(req)=>{
     if(action==='create'){
       const{data:existing,error:readErr}=await db.from('community_satispay_accounts').select('authorization_id,status').eq('user_id',user.id).maybeSingle();if(readErr)throw readErr;
       if(existing?.authorization_id&&existing.status==='ACCEPTED')return json({ok:true,status:'ACCEPTED',confirmed:true});
-      const idem=`tcv-account-${user.id}`;
+      const idem=`tcv-account-${user.id}-${crypto.randomUUID()}`;
       const a=await sat('POST','/g_business/v1/pre_authorized_payment_tokens',{reason:'Conferma account Tanto Ci Vai',callback_url:CALLBACK,redirect_url:RETURN_URL,metadata:{tcv_user_id:user.id,environment:'sandbox',purpose:'community_account_confirmation'}},idem);
       const status=String(a.status||'PENDING').toUpperCase();
       const{error}=await db.from('community_satispay_accounts').upsert({user_id:user.id,authorization_id:String(a.id),consumer_uid:a.consumer_uid||null,status,sandbox:true,updated_at:new Date().toISOString(),confirmed_at:status==='ACCEPTED'?new Date().toISOString():null},{onConflict:'user_id'});if(error)throw error;
