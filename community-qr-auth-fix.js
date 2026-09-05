@@ -1,8 +1,8 @@
-/* TCV_COMMUNITY_QR_AUTH_FIX_V3 */
+/* TCV_COMMUNITY_QR_AUTH_FIX_V4 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_QR_AUTH_FIX_V3)return;
-  window.TCV_COMMUNITY_QR_AUTH_FIX_V3=true;
+  if(window.TCV_COMMUNITY_QR_AUTH_FIX_V4)return;
+  window.TCV_COMMUNITY_QR_AUTH_FIX_V4=true;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -19,42 +19,8 @@
     try{if(video)video.srcObject=null}catch(_e){}
   }
 
-  function waitForQrCode(timeout=8000){
-    return new Promise((resolve,reject)=>{
-      const started=Date.now();
-      const timer=setInterval(()=>{
-        if(window.QRCode){clearInterval(timer);resolve(window.QRCode);return}
-        if(Date.now()-started>=timeout){clearInterval(timer);reject(new Error('Libreria QR non disponibile. Riprova con connessione attiva.'))}
-      },50);
-    });
-  }
-
-  async function loadQrLibrary(){
-    if(window.QRCode)return window.QRCode;
-    const existing=document.querySelector('script[data-tcv-qrcode-lib]');
-    if(existing)return waitForQrCode();
-
-    const sources=[
-      'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
-      'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'
-    ];
-
-    let lastError=null;
-    for(const src of sources){
-      try{
-        await new Promise((resolve,reject)=>{
-          const script=document.createElement('script');
-          script.src=src;
-          script.async=true;
-          script.dataset.tcvQrcodeLib='1';
-          script.onload=()=>resolve();
-          script.onerror=()=>{script.remove();reject(new Error('Caricamento libreria QR non riuscito'))};
-          document.head.appendChild(script);
-        });
-        if(window.QRCode)return window.QRCode;
-      }catch(e){lastError=e}
-    }
-    throw lastError||new Error('Libreria QR non disponibile.');
+  function ensureLocalQr(){
+    if(!window.TCVLocalQR?.toSvg)throw new Error('Generatore QR locale non caricato. Chiudi e riapri l’app.');
   }
 
   function clientUrl(){
@@ -136,19 +102,10 @@
   }
 
   function renderQr(host,text){
-    if(!window.QRCode)throw new Error('Generatore QR non disponibile.');
-    host.innerHTML='';
-    new window.QRCode(host,{
-      text,
-      width:280,
-      height:280,
-      correctLevel:window.QRCode.CorrectLevel.M
-    });
-    host.querySelectorAll('canvas,img').forEach(el=>{
-      el.style.maxWidth='100%';
-      el.style.height='auto';
-      el.style.margin='0 auto';
-    });
+    ensureLocalQr();
+    host.innerHTML=window.TCVLocalQR.toSvg(text);
+    const svg=host.querySelector('svg');
+    if(svg){svg.style.maxWidth='100%';svg.style.height='auto';svg.style.display='block';svg.style.margin='0 auto'}
   }
 
   window.tcvOpenMyProfileQr=async function(){
@@ -160,7 +117,7 @@
 
     const body=document.getElementById('tcvQrBody');
     try{
-      await loadQrLibrary();
+      ensureLocalQr();
       const row=await createQrToken();
       const target=qrBaseUrl();
       target.searchParams.set('tcvqr',String(row.token));
