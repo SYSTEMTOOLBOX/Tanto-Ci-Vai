@@ -1,8 +1,8 @@
-/* TCV_SATISPAY_PROFILE_STATUS_V1 */
+/* TCV_SATISPAY_PROFILE_STATUS_V2 */
 (function(){
   'use strict';
-  if(window.TCV_SATISPAY_PROFILE_STATUS_V1)return;
-  window.TCV_SATISPAY_PROFILE_STATUS_V1=true;
+  if(window.TCV_SATISPAY_PROFILE_STATUS_V2)return;
+  window.TCV_SATISPAY_PROFILE_STATUS_V2=true;
 
   function isReady(){
     try{return typeof PROFILE!=='undefined'&&!!PROFILE?.satispay_ready}catch(_){return false}
@@ -15,6 +15,10 @@
 
     box.querySelector('#tcvSatispayReadyHero')?.remove();
     const title=box.querySelector('h3');
+    const legacyReadyRow=box.querySelector('.satispay-ready-row');
+
+    // Lo stato Satispay non viene più attivato/disattivato manualmente dal form profilo.
+    if(legacyReadyRow)legacyReadyRow.style.display='none';
 
     if(!isReady()){
       box.style.background='';
@@ -46,12 +50,46 @@
     box.prepend(hero);
   }
 
+  function installSafeProfileSave(){
+    if(typeof window.saveProfile!=='function'||window.saveProfile.__tcvSatispaySafeSave)return;
+
+    const wrapped=async function(){
+      const nome=document.getElementById('pfName')?.value.trim()||'';
+      const telefono=document.getElementById('pfPhone')?.value.trim()||'';
+      const satispay_phone=document.getElementById('pfSatispayPhone')?.value.trim()||'';
+
+      if(!window.db||!window.SESSION?.user?.id){
+        alert('Sessione non disponibile. Chiudi e riapri Tanto Ci Vai.');
+        return;
+      }
+
+      // IMPORTANTE: satispay_ready non viene più scritto dal form.
+      // Lo stato di collegamento/abilitazione Satispay resta separato dai normali dati profilo.
+      const {error}=await db.from('profiles')
+        .update({nome,telefono,satispay_phone})
+        .eq('id',SESSION.user.id);
+
+      if(error){alert(error.message);return}
+
+      try{
+        PROFILE={...PROFILE,nome,telefono,satispay_phone};
+        if(typeof window.ensureProfile==='function')await window.ensureProfile();
+        if(typeof window.renderProfile==='function')window.renderProfile();
+      }catch(e){console.warn('refresh profile after save',e)}
+
+      alert(isReady()?'Profilo salvato. Satispay resta abilitato.':'Profilo salvato.');
+    };
+
+    wrapped.__tcvSatispaySafeSave=true;
+    window.saveProfile=wrapped;
+  }
+
   function wrapRenderProfile(){
     if(typeof window.renderProfile!=='function'||window.renderProfile.__tcvSatispayReadyVisual)return;
     const original=window.renderProfile;
     const wrapped=function(...args){
       const out=original.apply(this,args);
-      setTimeout(decorate,0);
+      setTimeout(()=>{decorate();installSafeProfileSave()},0);
       return out;
     };
     wrapped.__tcvSatispayReadyVisual=true;
@@ -59,17 +97,18 @@
   }
 
   function install(){
+    installSafeProfileSave();
     wrapRenderProfile();
     decorate();
     const profile=document.getElementById('profile');
-    if(profile)new MutationObserver(()=>setTimeout(decorate,20)).observe(profile,{childList:true,subtree:true});
-    setInterval(()=>{wrapRenderProfile();if(!profile?.classList.contains('hidden'))decorate()},1600);
+    if(profile)new MutationObserver(()=>setTimeout(()=>{decorate();installSafeProfileSave()},20)).observe(profile,{childList:true,subtree:true});
+    setInterval(()=>{installSafeProfileSave();wrapRenderProfile();if(!profile?.classList.contains('hidden'))decorate()},1600);
   }
 
   let tries=0;
   const timer=setInterval(()=>{
     tries++;
-    if(typeof window.renderProfile==='function'&&document.getElementById('profile')){
+    if(typeof window.renderProfile==='function'&&typeof window.saveProfile==='function'&&document.getElementById('profile')){
       clearInterval(timer);install();
     }else if(tries>100)clearInterval(timer);
   },150);
