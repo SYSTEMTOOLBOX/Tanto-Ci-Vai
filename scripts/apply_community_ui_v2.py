@@ -13,7 +13,7 @@ profile_match=re.search(profile_pattern,s)
 if not profile_match:
     raise SystemExit('community-profile script marker not found')
 
-ui_tag='<script src="./community-ui-v2.js?v=6"></script>'
+ui_tag='<script src="./community-ui-v2.js?v=7"></script>'
 fix_tag='<script src="./community-document-ui-fix.js?v=2"></script>'
 qr_tag='<script src="./community-qr.js?v=2"></script>'
 
