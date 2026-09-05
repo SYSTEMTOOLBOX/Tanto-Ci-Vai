@@ -1,8 +1,8 @@
-/* TCV_COMMUNITY_QR_AUTH_FIX_V2 */
+/* TCV_COMMUNITY_QR_AUTH_FIX_V3 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_QR_AUTH_FIX_V2)return;
-  window.TCV_COMMUNITY_QR_AUTH_FIX_V2=true;
+  if(window.TCV_COMMUNITY_QR_AUTH_FIX_V3)return;
+  window.TCV_COMMUNITY_QR_AUTH_FIX_V3=true;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -57,19 +57,82 @@
     throw lastError||new Error('Libreria QR non disponibile.');
   }
 
+  function clientUrl(){
+    return String(window.db?.supabaseUrl||((typeof SUPABASE_URL!=='undefined')?SUPABASE_URL:'')).replace(/\/$/,'');
+  }
+
+  function clientKey(){
+    return String(window.db?.supabaseKey||((typeof SUPABASE_KEY!=='undefined')?SUPABASE_KEY:''));
+  }
+
+  async function sessionToken(){
+    const {data,error}=await db.auth.getSession();
+    if(error)throw error;
+    const token=String(data?.session?.access_token||'');
+    if(!token)throw new Error('Sessione scaduta. Accedi di nuovo.');
+    return token;
+  }
+
+  function xhrRpcCreateProfileQr(accessToken){
+    return new Promise((resolve,reject)=>{
+      const base=clientUrl();
+      const key=clientKey();
+      if(!base||!key){reject(new Error('Configurazione Supabase non disponibile.'));return}
+
+      const xhr=new XMLHttpRequest();
+      xhr.open('POST',`${base}/rest/v1/rpc/tcv_create_profile_qr`,true);
+      xhr.timeout=12000;
+      xhr.setRequestHeader('apikey',key);
+      xhr.setRequestHeader('Authorization',`Bearer ${accessToken}`);
+      xhr.setRequestHeader('Content-Type','application/json');
+      xhr.setRequestHeader('Accept','application/json');
+
+      xhr.onload=()=>{
+        let parsed=null;
+        try{parsed=xhr.responseText?JSON.parse(xhr.responseText):null}catch(_e){}
+        if(xhr.status>=200&&xhr.status<300){
+          const row=Array.isArray(parsed)?parsed[0]:parsed;
+          if(row?.token){resolve(row);return}
+          reject(new Error('Il server non ha restituito un token QR valido.'));
+          return;
+        }
+        const msg=parsed?.message||parsed?.error||parsed?.hint||`Supabase HTTP ${xhr.status}`;
+        reject(new Error(String(msg)));
+      };
+      xhr.onerror=()=>reject(new Error('Connessione Supabase non raggiungibile dal telefono.'));
+      xhr.ontimeout=()=>reject(new Error('Connessione Supabase troppo lenta. Riprova.'));
+      xhr.send('{}');
+    });
+  }
+
   async function createQrToken(retried=false){
-    const {data,error}=await db.rpc('tcv_create_profile_qr');
-    if(error){
-      const msg=String(error?.message||error||'');
-      if(!retried&&/jwt|session|auth|unauthor/i.test(msg)){
-        const refreshed=await db.auth.refreshSession();
-        if(!refreshed.error&&refreshed.data?.session)return createQrToken(true);
+    try{
+      const {data,error}=await db.rpc('tcv_create_profile_qr');
+      if(error){
+        const msg=String(error?.message||error||'');
+        if(!retried&&/jwt|session|auth|unauthor/i.test(msg)){
+          try{
+            const refreshed=await db.auth.refreshSession();
+            if(!refreshed.error&&refreshed.data?.session)return createQrToken(true);
+          }catch(_e){}
+        }
+        if(/failed to fetch|network|load failed/i.test(msg)){
+          const token=await sessionToken();
+          return await xhrRpcCreateProfileQr(token);
+        }
+        throw error;
       }
-      throw error;
+      const row=Array.isArray(data)?data[0]:data;
+      if(!row?.token)throw new Error('Il server non ha restituito un token QR valido.');
+      return row;
+    }catch(e){
+      const msg=String(e?.message||e||'');
+      if(/failed to fetch|network|load failed/i.test(msg)){
+        const token=await sessionToken();
+        return await xhrRpcCreateProfileQr(token);
+      }
+      throw e;
     }
-    const row=Array.isArray(data)?data[0]:data;
-    if(!row?.token)throw new Error('Il server non ha restituito un token QR valido.');
-    return row;
   }
 
   function renderQr(host,text){
