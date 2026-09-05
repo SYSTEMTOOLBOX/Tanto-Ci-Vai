@@ -1,0 +1,48 @@
+name: Apply driver experience policy
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/apply_driver_experience_policy.py'
+      - '.github/workflows/apply-driver-experience-policy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate patch script
+        run: python -m py_compile scripts/apply_driver_experience_policy.py
+      - name: Apply driver experience policy
+        run: python scripts/apply_driver_experience_policy.py
+      - name: Validate Community JavaScript
+        run: |
+          node --check community-documents.js
+          node --check community-registration-gates.js
+          node --check community-ui-v2.js
+          node --check community-driver-experience.js
+          if grep -q "almeno 5 anni" community-documents.js community-registration-gates.js; then
+            echo "Old five-year exclusion is still present"
+            exit 1
+          fi
+      - name: Commit policy update
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add community-documents.js community-registration-gates.js community-ui-v2.js index.html
+          git commit -m "Allow newly licensed Community drivers [skip ci]"
+          git push
