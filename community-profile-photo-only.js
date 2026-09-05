@@ -1,14 +1,15 @@
-/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V1 */
+/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V2 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V1)return;
-  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V1=true;
+  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V2)return;
+  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V2=true;
 
   const BUCKET='community-avatars';
   const MAX_BYTES=5*1024*1024;
   const TYPES=['image/jpeg','image/png','image/webp'];
+  let SELECTED_FILE=null;
 
-  function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
   function bust(url){
     const base=String(url||'').split('#')[0];
     const sep=base.includes('?')?'&':'?';
@@ -39,45 +40,56 @@
 
   window.tcvOpenCompactPhotoOnly=function(){
     if(typeof window.openSheet!=='function')return;
+    SELECTED_FILE=null;
     const photo=currentPhoto();
-    openSheet(`${head('FOTO PROFILO','📷 Cambia foto','Qui modifichi esclusivamente la fotografia del tuo profilo Community.')}
+    openSheet(`${head('FOTO PROFILO','📷 Cambia foto','Scegli se scattare una nuova foto oppure prenderla dalla galleria.')}
       <div style="display:flex;justify-content:center;margin:16px 0 14px">
         <div id="tcvCompactPhotoPreview" style="width:128px;height:128px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#eef5f1;border:4px solid #fff;box-shadow:0 10px 28px rgba(8,117,70,.18)">
           ${photo?`<img src="${esc(photo)}" alt="Foto attuale" style="width:100%;height:100%;object-fit:cover">`:'📷'}
         </div>
       </div>
-      <div class="field">
-        <label>NUOVA FOTO</label>
-        <input id="tcvCompactPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" capture="user" onchange="tcvPreviewCompactPhotoOnly(this)">
+
+      <input id="tcvCompactPhotoCamera" type="file" accept="image/jpeg,image/png,image/webp" capture="user" style="display:none" onchange="tcvPreviewCompactPhotoOnly(this,'camera')">
+      <input id="tcvCompactPhotoGallery" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="tcvPreviewCompactPhotoOnly(this,'gallery')">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px">
+        <button type="button" class="btn primary" style="min-height:72px;font-size:12px;border-radius:18px" onclick="document.getElementById('tcvCompactPhotoCamera')?.click()">📷<br><b>SCATTA FOTO</b></button>
+        <button type="button" class="btn outline" style="min-height:72px;font-size:12px;border-radius:18px;background:#fff" onclick="document.getElementById('tcvCompactPhotoGallery')?.click()">🖼️<br><b>GALLERIA</b></button>
       </div>
-      <div id="tcvCompactPhotoStatus" class="notice">JPG, PNG o WEBP · massimo 5 MB.</div>
+
+      <div id="tcvCompactPhotoStatus" class="notice" style="margin-top:10px">JPG, PNG o WEBP · massimo 5 MB.</div>
       <button id="tcvCompactPhotoSave" class="btn teal full" style="margin-top:10px;padding:14px" onclick="tcvSaveCompactPhotoOnly()">📷 SALVA NUOVA FOTO</button>
       <button class="btn outline full" style="margin-top:8px" onclick="closeSheet()">Chiudi</button>`);
   };
 
-  window.tcvPreviewCompactPhotoOnly=function(input){
+  window.tcvPreviewCompactPhotoOnly=function(input,source){
     const file=input?.files?.[0];
     const preview=document.getElementById('tcvCompactPhotoPreview');
     const st=document.getElementById('tcvCompactPhotoStatus');
     if(!file||!preview)return;
     if(!TYPES.includes(file.type)){
+      SELECTED_FILE=null;
       if(st){st.className='notice yellow';st.textContent='Formato non supportato. Usa JPG, PNG o WEBP.'}
       return;
     }
     if(file.size>MAX_BYTES){
+      SELECTED_FILE=null;
       if(st){st.className='notice yellow';st.textContent='Foto troppo grande: massimo 5 MB.'}
       return;
     }
+    SELECTED_FILE=file;
+    const otherId=source==='camera'?'tcvCompactPhotoGallery':'tcvCompactPhotoCamera';
+    const other=document.getElementById(otherId);
+    if(other)other.value='';
     const url=URL.createObjectURL(file);
     preview.innerHTML=`<img src="${esc(url)}" alt="Anteprima nuova foto" style="width:100%;height:100%;object-fit:cover">`;
-    if(st){st.className='notice green';st.textContent='Anteprima pronta. Premi “Salva nuova foto”.'}
+    if(st){st.className='notice green';st.textContent=(source==='camera'?'Foto scattata':'Foto scelta dalla galleria')+'. Premi “Salva nuova foto”.'}
   };
 
   window.tcvSaveCompactPhotoOnly=async function(){
-    const input=document.getElementById('tcvCompactPhotoInput');
     const st=document.getElementById('tcvCompactPhotoStatus');
     const btn=document.getElementById('tcvCompactPhotoSave');
-    const file=input?.files?.[0];
+    const file=SELECTED_FILE;
     const uid=window.SESSION?.user?.id;
 
     if(!uid||!window.db){
@@ -85,7 +97,7 @@
       return;
     }
     if(!file){
-      if(st){st.className='notice yellow';st.textContent='Scegli prima una nuova fotografia.'}
+      if(st){st.className='notice yellow';st.textContent='Scatta una foto oppure scegline una dalla galleria.'}
       return;
     }
     if(!TYPES.includes(file.type)){
@@ -120,7 +132,11 @@
       if(typeof window.tcvRefreshHeaderCommunityAvatar==='function')await window.tcvRefreshHeaderCommunityAvatar();
 
       if(st){st.className='notice green';st.textContent='✓ Foto aggiornata. È già attiva nel tuo profilo Community.'}
-      if(input)input.value='';
+      SELECTED_FILE=null;
+      const cam=document.getElementById('tcvCompactPhotoCamera');
+      const gal=document.getElementById('tcvCompactPhotoGallery');
+      if(cam)cam.value='';
+      if(gal)gal.value='';
     }catch(e){
       console.warn('compact photo-only upload',e);
       if(st){st.className='notice yellow';st.textContent='Errore aggiornamento foto: '+(e?.message||e)}
