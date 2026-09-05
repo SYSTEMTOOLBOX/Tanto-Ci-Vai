@@ -35,8 +35,23 @@
   }
 
   async function invoke(action){
-    const {data,error}=await db.functions.invoke('satispay-account',{body:{action}});
-    if(error)throw error;
+    const {data:{session}}=await db.auth.getSession();
+    if(!session?.access_token)throw new Error('Sessione scaduta. Chiudi e riapri Tanto Ci Vai.');
+    const {data,error}=await db.functions.invoke('satispay-account',{
+      body:{action},
+      headers:{Authorization:`Bearer ${session.access_token}`}
+    });
+    if(error){
+      let detail=error?.message||'Errore Satispay';
+      try{
+        const response=error?.context;
+        if(response&&typeof response.clone==='function'){
+          const payload=await response.clone().json();
+          detail=payload?.error||payload?.message||detail;
+        }
+      }catch(e){}
+      throw new Error(detail);
+    }
     if(data?.error)throw new Error(data.error);
     return data||{};
   }
