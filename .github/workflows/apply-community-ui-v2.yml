@@ -9,6 +9,7 @@ on:
       - 'community-document-ui-fix.js'
       - 'community-driver-experience.js'
       - 'community-public-profile-readonly.js'
+      - 'community-crime-alerts.js'
       - 'community-phone-verification.js'
       - 'satispay-profile-status.js'
       - 'community-profile-compact.js'
@@ -41,6 +42,7 @@ jobs:
           node --check community-document-ui-fix.js
           node --check community-driver-experience.js
           node --check community-public-profile-readonly.js
+          node --check community-crime-alerts.js
           node --check community-phone-verification.js
           node --check satispay-profile-status.js
           node --check community-profile-compact.js
@@ -56,5 +58,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Wire read-only public Community profile [skip ci]"
+          git commit -m "Wire Community crime alert presets [skip ci]"
           git push
