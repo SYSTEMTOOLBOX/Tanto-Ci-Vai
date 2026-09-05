@@ -21,8 +21,8 @@
     const candidates=[...root.querySelectorAll('span,div')];
     for(const el of candidates){
       const t=String(el.textContent||'').trim();
-      if(t==='📱 Telefono verificato'||t==='📱 Telefono non verificato'||t==='✅ Account confermato'||t==='Account non confermato'){
-        el.textContent=confirmed?'✅ Account confermato':'Account non confermato';
+      if(t==='📱 Telefono verificato'||t==='📱 Telefono non verificato'||t==='✅ Account confermato'||t==='Account non confermato'||t==='✅ Satispay collegato'||t==='Satispay non collegato'){
+        el.textContent=confirmed?'✅ Satispay collegato':'Satispay non collegato';
         el.style.background=confirmed?'#eafff5':'#f5f7fb';
         el.style.color=confirmed?'#08785f':'#69758d';
       }
@@ -78,28 +78,28 @@
     if(!window.SESSION?.user?.id)return;
     let state={confirmed:false};
     try{state=await publicState(SESSION.user.id)}catch(e){}
-    if(state.confirmed){alert('✅ Il tuo account è già confermato con Satispay.');return}
-    openSheet(`${head('SICUREZZA COMMUNITY','✅ Conferma account','Conferma il tuo account tramite Satispay. Il tuo numero di telefono resta privato e non viene mostrato alla Community.')}
-      <div class="notice green" style="margin-top:10px"><b>Cosa vedranno gli altri?</b><br>Solo il badge “Account confermato”. Nessun numero di telefono, email o dato Satispay viene pubblicato.</div>
-      <div id="tcvAccountConfirmStatus" class="notice" style="margin-top:10px">Premi il pulsante e completa la conferma nell’app o nella pagina Satispay.</div>
-      <button id="tcvAccountConfirmBtn" class="btn teal full" style="margin-top:10px;padding:14px" onclick="tcvStartAccountConfirmation()">❤️ CONFERMA CON SATISPAY</button>
+    if(state.confirmed){alert('✅ Satispay è già collegato al tuo account.');return}
+    openSheet(`${head('SICUREZZA COMMUNITY','💳 Collega Satispay','Collega Satispay per gestire i pagamenti di Tanto Ci Vai. Il tuo numero di telefono resta privato e non viene mostrato alla Community.')}
+      <div class="notice green" style="margin-top:10px"><b>Cosa vedranno gli altri?</b><br>Solo il badge “Satispay collegato”. Nessun numero di telefono, email o identificativo Satispay viene pubblicato.</div>
+      <div id="tcvAccountConfirmStatus" class="notice" style="margin-top:10px">Premi il pulsante e completa il collegamento nell’app o nella pagina Satispay. In Sandbox Satispay può mostrarti una richiesta di autorizzazione ai pagamenti automatici.</div>
+      <button id="tcvAccountConfirmBtn" class="btn teal full" style="margin-top:10px;padding:14px" onclick="tcvStartAccountConfirmation()">💳 COLLEGA SATISPAY</button>
       <button class="btn outline full" style="margin-top:8px" onclick="closeSheet()">Chiudi</button>`);
   };
 
   window.tcvStartAccountConfirmation=async function(){
     const st=document.getElementById('tcvAccountConfirmStatus'),btn=document.getElementById('tcvAccountConfirmBtn');
     if(btn){btn.disabled=true;btn.textContent='Apro Satispay…'}
-    if(st)st.textContent='Creo la conferma sicura con Satispay…';
+    if(st)st.textContent='Creo il collegamento sicuro con Satispay…';
     try{
       const data=await invoke('create');
-      if(data.confirmed){if(st)st.innerHTML='✅ <b>Account già confermato.</b>';setTimeout(()=>{closeSheet();renderProfile?.()},600);return}
-      if(!data.redirect_url)throw new Error('Satispay non ha restituito il link di conferma.');
+      if(data.confirmed){if(st)st.innerHTML='✅ <b>Satispay è già collegato.</b>';setTimeout(()=>{closeSheet();renderProfile?.()},600);return}
+      if(!data.redirect_url)throw new Error('Satispay non ha restituito il link di collegamento.');
       try{localStorage.setItem('tcv_satispay_account_pending','1')}catch(e){}
       window.location.assign(String(data.redirect_url));
     }catch(e){
       console.warn('Satispay account create',e);
-      if(st){st.className='notice yellow';st.textContent='Non riesco ad aprire la conferma Satispay: '+(e?.message||e)}
-      if(btn){btn.disabled=false;btn.textContent='❤️ RIPROVA CON SATISPAY'}
+      if(st){st.className='notice yellow';st.textContent='Non riesco ad aprire il collegamento Satispay: '+(e?.message||e)}
+      if(btn){btn.disabled=false;btn.textContent='💳 RIPROVA CON SATISPAY'}
     }
   };
 
@@ -111,11 +111,11 @@
       try{history.replaceState({},document.title,location.pathname+location.hash)}catch(e){}
       if(typeof window.renderProfile==='function')window.renderProfile();
       setTimeout(decorateOwnProfile,120);
-      if(data.confirmed)openSheet(`${head('SICUREZZA COMMUNITY','✅ Account confermato','La conferma Satispay è riuscita.')}
-        <div class="notice green" style="margin-top:10px"><b>Account confermato.</b><br>Nel profilo pubblico compare solo il badge. Il tuo numero di telefono resta privato.</div>
+      if(data.confirmed)openSheet(`${head('SICUREZZA COMMUNITY','✅ Satispay collegato','Il collegamento Satispay è riuscito.')}
+        <div class="notice green" style="margin-top:10px"><b>Satispay collegato.</b><br>Nel profilo pubblico compare solo il badge “Satispay collegato”. Il tuo numero di telefono resta privato.</div>
         <button class="btn teal full" style="margin-top:10px" onclick="closeSheet();page('profile')">VAI AL PROFILO</button>`);
-      else openSheet(`${head('SICUREZZA COMMUNITY','⏳ Conferma in attesa','Satispay non ha ancora confermato l’operazione.')}
-        <div class="notice yellow" style="margin-top:10px">Puoi riprovare la conferma dal Profilo.</div>
+      else openSheet(`${head('SICUREZZA COMMUNITY','⏳ Collegamento in attesa','Satispay non ha ancora completato il collegamento.')}
+        <div class="notice yellow" style="margin-top:10px">Puoi riprovare il collegamento dal Profilo.</div>
         <button class="btn outline full" style="margin-top:10px" onclick="closeSheet();page('profile')">TORNA AL PROFILO</button>`);
     }catch(e){console.warn('Satispay account status',e)}
   }
@@ -134,7 +134,7 @@
       if(s.confirmed){wrap?.remove();return}
       if(!wrap){
         wrap=document.createElement('div');wrap.id='tcvAccountConfirmAction';wrap.style.marginTop='8px';
-        wrap.innerHTML='<button class="btn outline full" style="padding:12px" onclick="tcvOpenAccountConfirmation()">✅ CONFERMA ACCOUNT CON SATISPAY</button>';
+        wrap.innerHTML='<button class="btn outline full" style="padding:12px" onclick="tcvOpenAccountConfirmation()">💳 COLLEGA SATISPAY</button>';
         card.appendChild(wrap);
       }
     }catch(e){console.warn('account confirm button',e)}finally{INJECTING=false}
