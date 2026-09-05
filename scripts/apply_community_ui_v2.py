@@ -13,6 +13,7 @@ satispay_status_pattern=r'<script src="\./satispay-profile-status\.js\?v=\d+"></
 compact_profile_pattern=r'<script src="\./community-profile-compact\.js\?v=\d+"></script>'
 photo_only_pattern=r'<script src="\./community-profile-photo-only\.js\?v=\d+"></script>'
 role_gate_pattern=r'<script src="\./community-role-gates\.js\?v=\d+"></script>'
+registration_gate_pattern=r'<script src="\./community-registration-gates\.js\?v=\d+"></script>'
 
 profile_match=re.search(profile_pattern,s)
 if not profile_match:
@@ -23,9 +24,10 @@ fix_tag='<script src="./community-document-ui-fix.js?v=2"></script>'
 qr_tag='<script src="./community-qr.js?v=2"></script>'
 account_tag='<script src="./community-phone-verification.js?v=6"></script>'
 satispay_status_tag='<script src="./satispay-profile-status.js?v=2"></script>'
-compact_profile_tag='<script src="./community-profile-compact.js?v=2"></script>'
+compact_profile_tag='<script src="./community-profile-compact.js?v=3"></script>'
 photo_only_tag='<script src="./community-profile-photo-only.js?v=6"></script>'
-role_gate_tag='<script src="./community-role-gates.js?v=1"></script>'
+role_gate_tag='<script src="./community-role-gates.js?v=2"></script>'
+registration_gate_tag='<script src="./community-registration-gates.js?v=1"></script>'
 
 if re.search(ui_pattern,s):
     s=re.sub(ui_pattern,ui_tag,s,count=1)
@@ -66,5 +68,10 @@ if re.search(role_gate_pattern,s):
     s=re.sub(role_gate_pattern,role_gate_tag,s,count=1)
 else:
     s=s.replace(photo_only_tag,photo_only_tag+'\n'+role_gate_tag,1)
+
+if re.search(registration_gate_pattern,s):
+    s=re.sub(registration_gate_pattern,registration_gate_tag,s,count=1)
+else:
+    s=s.replace(role_gate_tag,role_gate_tag+'\n'+registration_gate_tag,1)
 
 p.write_text(s,encoding='utf-8')
