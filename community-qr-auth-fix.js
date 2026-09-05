@@ -1,8 +1,8 @@
-/* TCV_COMMUNITY_QR_AUTH_FIX_V1 */
+/* TCV_COMMUNITY_QR_AUTH_FIX_V2 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_QR_AUTH_FIX_V1)return;
-  window.TCV_COMMUNITY_QR_AUTH_FIX_V1=true;
+  if(window.TCV_COMMUNITY_QR_AUTH_FIX_V2)return;
+  window.TCV_COMMUNITY_QR_AUTH_FIX_V2=true;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -10,56 +10,82 @@
     const u=new URL(location.href);
     u.search='';
     u.hash='';
-    return u.toString();
-  }
-
-  async function getAccessToken(forceRefresh){
-    if(!window.db)return '';
-    if(forceRefresh){
-      const {data,error}=await db.auth.refreshSession();
-      if(error)throw error;
-      return String(data?.session?.access_token||'');
-    }
-    const {data,error}=await db.auth.getSession();
-    if(error)throw error;
-    let token=String(data?.session?.access_token||'');
-    if(!token){
-      const refreshed=await db.auth.refreshSession();
-      if(refreshed.error)throw refreshed.error;
-      token=String(refreshed.data?.session?.access_token||'');
-    }
-    return token;
-  }
-
-  function statusOf(error){
-    return Number(error?.context?.status||error?.status||error?.statusCode||0);
-  }
-
-  async function invokeQr(){
-    let token=await getAccessToken(false);
-    if(!token)throw new Error('Sessione scaduta. Chiudi e riapri l’app.');
-
-    let result=await db.functions.invoke('community-qr-svg',{
-      body:{base_url:qrBaseUrl()},
-      headers:{Authorization:`Bearer ${token}`}
-    });
-
-    const firstStatus=statusOf(result?.error);
-    if(result?.error&&(firstStatus===401||firstStatus===403)){
-      token=await getAccessToken(true);
-      if(!token)throw new Error('Sessione scaduta. Accedi di nuovo.');
-      result=await db.functions.invoke('community-qr-svg',{
-        body:{base_url:qrBaseUrl()},
-        headers:{Authorization:`Bearer ${token}`}
-      });
-    }
-    return result;
+    return u;
   }
 
   function stopQrCamera(){
     const video=document.getElementById('tcvQrVideo');
     try{video?.srcObject?.getTracks?.().forEach(t=>t.stop())}catch(_e){}
     try{if(video)video.srcObject=null}catch(_e){}
+  }
+
+  function waitForQrCode(timeout=8000){
+    return new Promise((resolve,reject)=>{
+      const started=Date.now();
+      const timer=setInterval(()=>{
+        if(window.QRCode){clearInterval(timer);resolve(window.QRCode);return}
+        if(Date.now()-started>=timeout){clearInterval(timer);reject(new Error('Libreria QR non disponibile. Riprova con connessione attiva.'))}
+      },50);
+    });
+  }
+
+  async function loadQrLibrary(){
+    if(window.QRCode)return window.QRCode;
+    const existing=document.querySelector('script[data-tcv-qrcode-lib]');
+    if(existing)return waitForQrCode();
+
+    const sources=[
+      'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+      'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'
+    ];
+
+    let lastError=null;
+    for(const src of sources){
+      try{
+        await new Promise((resolve,reject)=>{
+          const script=document.createElement('script');
+          script.src=src;
+          script.async=true;
+          script.dataset.tcvQrcodeLib='1';
+          script.onload=()=>resolve();
+          script.onerror=()=>{script.remove();reject(new Error('Caricamento libreria QR non riuscito'))};
+          document.head.appendChild(script);
+        });
+        if(window.QRCode)return window.QRCode;
+      }catch(e){lastError=e}
+    }
+    throw lastError||new Error('Libreria QR non disponibile.');
+  }
+
+  async function createQrToken(retried=false){
+    const {data,error}=await db.rpc('tcv_create_profile_qr');
+    if(error){
+      const msg=String(error?.message||error||'');
+      if(!retried&&/jwt|session|auth|unauthor/i.test(msg)){
+        const refreshed=await db.auth.refreshSession();
+        if(!refreshed.error&&refreshed.data?.session)return createQrToken(true);
+      }
+      throw error;
+    }
+    const row=Array.isArray(data)?data[0]:data;
+    if(!row?.token)throw new Error('Il server non ha restituito un token QR valido.');
+    return row;
+  }
+
+  function renderQr(host,text){
+    if(!window.QRCode)throw new Error('Generatore QR non disponibile.');
+    host.innerHTML='';
+    new window.QRCode(host,{
+      text,
+      width:280,
+      height:280,
+      correctLevel:window.QRCode.CorrectLevel.M
+    });
+    host.querySelectorAll('canvas,img').forEach(el=>{
+      el.style.maxWidth='100%';
+      el.style.height='auto';
+      el.style.margin='0 auto';
+    });
   }
 
   window.tcvOpenMyProfileQr=async function(){
@@ -71,15 +97,23 @@
 
     const body=document.getElementById('tcvQrBody');
     try{
-      const {data,error}=await invokeQr();
-      if(error||data?.error)throw error||new Error(data.error);
+      await loadQrLibrary();
+      const row=await createQrToken();
+      const target=qrBaseUrl();
+      target.searchParams.set('tcvqr',String(row.token));
 
-      const exp=data?.expires_at?new Date(data.expires_at):null;
+      const exp=row.expires_at?new Date(row.expires_at):null;
       const expLabel=exp&&!isNaN(exp)?exp.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'tra 10 minuti';
-      if(body)body.innerHTML=`<div style="display:flex;justify-content:center"><div style="background:#fff;padding:12px;border:1px solid #dfe8f4;border-radius:20px;box-shadow:0 8px 24px rgba(11,24,52,.08);max-width:330px;width:100%">${data?.svg||''}</div></div>
-        <div class="notice green" style="margin-top:12px"><b>QR pronto</b><br>Valido fino alle ${esc(expLabel)}. È monouso: dopo una conferma non può essere riutilizzato.</div>
-        <div style="font-size:10px;color:#69758d;line-height:1.5;margin:10px 4px">L'altra persona può usare <b>Scansiona QR</b> dentro Tanto Ci Vai oppure la fotocamera del telefono.</div>
-        <button class="btn primary full" onclick="tcvOpenMyProfileQr()">↻ GENERA UN NUOVO QR</button>`;
+
+      if(body){
+        body.innerHTML=`<div style="display:flex;justify-content:center"><div style="background:#fff;padding:12px;border:1px solid #dfe8f4;border-radius:20px;box-shadow:0 8px 24px rgba(11,24,52,.08);max-width:330px;width:100%"><div id="tcvQrDirectHost" style="display:grid;place-items:center;min-height:280px"></div></div></div>
+          <div class="notice green" style="margin-top:12px"><b>QR pronto</b><br>Valido fino alle ${esc(expLabel)}. È monouso: dopo una conferma non può essere riutilizzato.</div>
+          <div style="font-size:10px;color:#69758d;line-height:1.5;margin:10px 4px">L'altra persona può usare <b>Scansiona QR</b> dentro Tanto Ci Vai oppure la fotocamera del telefono: il codice riapre direttamente l'app.</div>
+          <button class="btn primary full" onclick="tcvOpenMyProfileQr()">↻ GENERA UN NUOVO QR</button>`;
+        const host=document.getElementById('tcvQrDirectHost');
+        if(!host)throw new Error('Area QR non disponibile.');
+        renderQr(host,target.toString());
+      }
     }catch(e){
       const msg=String(e?.message||e||'Riprova tra poco.');
       if(body)body.innerHTML=`<div class="notice yellow"><b>Non riesco a generare il QR.</b><br>${esc(msg)}</div>
