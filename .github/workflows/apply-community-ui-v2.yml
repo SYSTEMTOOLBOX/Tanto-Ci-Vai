@@ -5,7 +5,9 @@ on:
   push:
     paths:
       - 'community-ui-v2.js'
+      - 'community-documents.js'
       - 'community-document-ui-fix.js'
+      - 'community-driver-experience.js'
       - 'community-phone-verification.js'
       - 'satispay-profile-status.js'
       - 'community-profile-compact.js'
@@ -34,7 +36,9 @@ jobs:
       - name: Validate Community UI JavaScript
         run: |
           node --check community-ui-v2.js
+          node --check community-documents.js
           node --check community-document-ui-fix.js
+          node --check community-driver-experience.js
           node --check community-phone-verification.js
           node --check satispay-profile-status.js
           node --check community-profile-compact.js
@@ -50,5 +54,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Wire Community registration gates [skip ci]"
+          git commit -m "Wire driver licence experience UI [skip ci]"
           git push
