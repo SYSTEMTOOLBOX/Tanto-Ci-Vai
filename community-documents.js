@@ -1,4 +1,5 @@
 /* TCV_COMMUNITY_DOCUMENTS_V1 */
+/* TCV_DRIVER_EXPERIENCE_POLICY_V1 */
 (function(){
   'use strict';
   if(window.TCV_COMMUNITY_DOCUMENTS_V1)return;
@@ -14,20 +15,33 @@
   function parseDateOnly(v){if(!v)return null;const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));return Number.isFinite(d.getTime())?d:null}
   function fmtDate(v){const d=parseDateOnly(v);return d?d.toLocaleDateString('it-IT'):'—'}
   function dateInputValue(v){return v?String(v).slice(0,10):''}
-  function fiveYearsAfter(d){const x=new Date(d.getFullYear()+5,d.getMonth(),d.getDate());return x}
   function splitName(v){const p=String(v||'').trim().replace(/\s+/g,' ').split(' ').filter(Boolean);return {first:p.shift()||'',last:p.join(' ')}}
   function typeLabel(t){return t==='driving_license'?'Patente di guida':'Carta d’identità'}
+
+  function licenseExperienceText(bSince){
+    const b=parseDateOnly(bSince),today=todayLocal();
+    if(!b||b>today)return '';
+    let months=(today.getFullYear()-b.getFullYear())*12+(today.getMonth()-b.getMonth());
+    if(today.getDate()<b.getDate())months--;
+    months=Math.max(0,months);
+    if(months===0)return 'meno di 1 mese';
+    if(months<12)return `${months} ${months===1?'mese':'mesi'}`;
+    const years=Math.floor(months/12),rem=months%12;
+    const y=`${years} ${years===1?'anno':'anni'}`;
+    return rem?`${y} e ${rem} ${rem===1?'mese':'mesi'}`:y;
+  }
 
   function driverEligibility(bSince,expires){
     const b=parseDateOnly(bSince),exp=parseDateOnly(expires),today=todayLocal();
     if(!b)return {ok:false,reason:'Inserisci la data di conseguimento della categoria B.'};
+    if(b>today)return {ok:false,reason:'La data di conseguimento della categoria B non può essere nel futuro.'};
     if(!exp)return {ok:false,reason:'Inserisci la data di scadenza della patente.'};
+    if(exp<b)return {ok:false,reason:'La data di scadenza della patente non è valida.'};
     if(exp<today)return {ok:false,reason:`Patente scaduta il ${fmtDate(expires)}. Puoi continuare a usare Tanto Ci Vai come passeggero, ma non come guidatore.`};
-    const eligibleOn=fiveYearsAfter(b);
-    if(eligibleOn>today)return {ok:false,reason:`Per offrire passaggi servono almeno 5 anni dalla categoria B. Potrai diventare guidatore dal ${eligibleOn.toLocaleDateString('it-IT')}.`};
-    return {ok:true,reason:`✓ Requisito guida superato: categoria B dal ${fmtDate(bSince)} e patente valida fino al ${fmtDate(expires)}.`};
+    return {ok:true,reason:`✓ Patente valida. Esperienza di guida: ${licenseExperienceText(bSince)}. Scadenza ${fmtDate(expires)}.`};
   }
   window.tcvCommunityDriverEligibility=driverEligibility;
+  window.tcvCommunityLicenseExperienceText=licenseExperienceText;
 
   async function loadState(){
     if(!window.db||!window.SESSION?.user?.id)return {profile:null,doc:null};
@@ -98,7 +112,7 @@
         <input id="tcvDocRole" type="hidden" value="${esc(role)}">
         <div class="choices" style="margin-top:7px">
           <button type="button" id="tcvDocRolePassenger" class="choice" onclick="tcvSetCommunityDocumentRole('passenger')"><span class="em">🙋</span><b>Voglio chiedere passaggi</b><small>Registrazione con carta d’identità.</small></button>
-          <button type="button" id="tcvDocRoleDriver" class="choice" onclick="tcvSetCommunityDocumentRole('driver_passenger')"><span class="em">🚗</span><b>Voglio anche offrire passaggi</b><small>Patente obbligatoria e almeno 5 anni dalla categoria B.</small></button>
+          <button type="button" id="tcvDocRoleDriver" class="choice" onclick="tcvSetCommunityDocumentRole('driver_passenger')"><span class="em">🚗</span><b>Voglio anche offrire passaggi</b><small>Patente B valida obbligatoria. Gli altri utenti vedranno da quanto tempo guidi.</small></button>
         </div>
       </div>
       <div class="grid2"><div class="field"><label>NOME SUL DOCUMENTO</label><input id="tcvDocFirstName" maxlength="80" autocomplete="given-name" value="${esc(first)}"></div><div class="field"><label>COGNOME SUL DOCUMENTO</label><input id="tcvDocLastName" maxlength="80" autocomplete="family-name" value="${esc(last)}"></div></div>
@@ -175,7 +189,7 @@
         if(stale.length){const rem=await db.storage.from(BUCKET).remove(stale);if(rem.error)console.warn('old community document cleanup',rem.error)}
       }
       const fresh=await loadState();
-      if(st){st.className='notice green';st.innerHTML=`✓ <b>${esc(typeLabel(docType))} registrata.</b><br>Le immagini sono private e non sono state pubblicate.${docType==='driving_license'?'<br>✓ Requisito minimo di 5 anni e scadenza controllati.':''}`}
+      if(st){st.className='notice green';st.innerHTML=`✓ <b>${esc(typeLabel(docType))} registrata.</b><br>Le immagini sono private e non sono state pubblicate.${docType==='driving_license'?'<br>✓ Patente valida e anzianità di guida registrata.':''}`}
       setTimeout(()=>{injectProfileCard(true);wireSafetyButton()},120)
       return fresh.doc
     }catch(e){console.warn('community document save',e);if(st){st.className='notice yellow';st.textContent='Errore salvataggio documento: '+(e?.message||e)}}finally{if(btn)btn.disabled=false}
@@ -246,7 +260,7 @@
     if(doc){
       if(doc.document_type==='driving_license'){
         const chk=driverEligibility(doc.license_b_since,doc.license_expires_on);good=chk.ok;
-        body=`Patente registrata · B dal ${esc(fmtDate(doc.license_b_since))} · scadenza ${esc(fmtDate(doc.license_expires_on))}.<br>${esc(chk.reason)}`;
+        body=`Patente registrata · ${esc(licenseExperienceText(doc.license_b_since))} di esperienza · scadenza ${esc(fmtDate(doc.license_expires_on))}.`;
       }else{good=true;body='Carta d’identità registrata. Le immagini sono conservate nell’area privata.'}
     }
     card.innerHTML=`<div style="font-size:9px;color:#0b66ff;font-weight:950;letter-spacing:.1em">DOCUMENTO COMMUNITY</div><h3 style="margin:4px 0 5px;font-size:17px">🪪 ${doc?esc(typeLabel(doc.document_type)):'Registrazione documento'}</h3><p style="font-size:9px;color:#69758d;line-height:1.5;margin:0">${body}</p><div class="notice ${doc&&good?'green':'yellow'}" style="margin-top:9px">${doc?'✓ Documento caricato in archivio privato.':'Per richiedere o offrire passaggi devi prima registrare il documento previsto per il tuo ruolo.'}</div><button class="btn ${doc?'outline':'teal'} full" style="margin-top:9px" onclick="tcvOpenCommunityDocumentSetup()">🪪 ${doc?'GESTISCI DOCUMENTO':'REGISTRA DOCUMENTO'}</button>`;

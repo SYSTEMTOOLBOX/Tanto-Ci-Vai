@@ -1,4 +1,5 @@
 /* TCV_COMMUNITY_REGISTRATION_GATES_V1
+   TCV_DRIVER_EXPERIENCE_POLICY_V1
    Identity document required for every Community member.
    Satispay remains optional. Community-only members can use safety features but not rides.
 */
@@ -72,7 +73,7 @@
     const heading=choices.previousElementSibling;
     if(heading&&heading.textContent?.includes('COME VUOI USARE'))heading.textContent='COME VUOI PARTECIPARE A TANTO CI VAI?';
     passenger.querySelector('small').textContent='Puoi chiedere e ricevere passaggi. Carta d’identità obbligatoria.';
-    driver.querySelector('small').textContent='Puoi offrire e ricevere passaggi. Patente obbligatoria e almeno 5 anni dalla categoria B.';
+    driver.querySelector('small').textContent='Puoi offrire e ricevere passaggi. Patente B valida obbligatoria; mostriamo da quanto tempo guidi.';
     if(p?.community_role==='community_only')selectCommunityOnly();
   }
 

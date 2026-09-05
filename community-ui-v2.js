@@ -10,7 +10,7 @@
   function loadCommunityDocumentsModule(){
     if(window.TCV_COMMUNITY_DOCUMENTS_V1||document.querySelector('script[data-tcv-community-documents]'))return;
     const s=document.createElement('script');
-    s.src='./community-documents.js?v=2';
+    s.src='./community-documents.js?v=3';
     s.async=true;
     s.dataset.tcvCommunityDocuments='1';
     document.head.appendChild(s)
