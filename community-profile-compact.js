@@ -1,8 +1,8 @@
-/* TCV_COMMUNITY_PROFILE_COMPACT_V2 */
+/* TCV_COMMUNITY_PROFILE_COMPACT_V3 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_PROFILE_COMPACT_V2)return;
-  window.TCV_COMMUNITY_PROFILE_COMPACT_V2=true;
+  if(window.TCV_COMMUNITY_PROFILE_COMPACT_V3)return;
+  window.TCV_COMMUNITY_PROFILE_COMPACT_V3=true;
 
   let EXPANDED=false;
   let BUSY=false;
@@ -28,10 +28,11 @@
   }
 
   function isEnabled(p){
-    // Community base: nome + foto + profilo attivo. Satispay e documenti non sono requisiti.
-    if(!p?.community_enabled||!p?.avatar_url||!String(p?.display_name||'').trim())return false;
-    // Solo chi vuole guidare deve avere una patente registrata.
-    if(p?.community_role==='driver_passenger'&&(!p?.document_registered||p?.document_kind!=='driving_license'))return false;
+    // Community abilitata = account attivo, nome, foto riconoscibile e documento registrato.
+    // Satispay resta sempre facoltativo.
+    if(!p?.community_enabled||!p?.avatar_url||!String(p?.display_name||'').trim()||!p?.document_registered)return false;
+    // Solo chi vuole guidare deve avere nello specifico una patente registrata.
+    if(p?.community_role==='driver_passenger'&&p?.document_kind!=='driving_license')return false;
     return true;
   }
 
@@ -142,10 +143,10 @@
     openSheet(`${head('PROFILO COMMUNITY','⚙️ Gestisci profilo','Modifica solo ciò che ti serve. Il profilo principale resta semplice e ordinato.')}
       <div style="display:grid;gap:9px;margin-top:12px">
         <button class="btn teal full" style="padding:14px" onclick="closeSheet();typeof tcvOpenCommunitySafetyProfile==='function'?tcvOpenCommunitySafetyProfile():null">📷 CAMBIA FOTO E DATI</button>
-        <button class="btn outline full" style="padding:14px" onclick="closeSheet();typeof tcvOpenCommunityDocumentSetup==='function'?tcvOpenCommunityDocumentSetup():null">🪪 DOCUMENTO / PATENTE · SE SERVE</button>
+        <button class="btn outline full" style="padding:14px" onclick="closeSheet();typeof tcvOpenCommunityDocumentSetup==='function'?tcvOpenCommunityDocumentSetup():null">🪪 DOCUMENTO / PATENTE · OBBLIGATORIO</button>
         <button class="btn outline full" style="padding:14px" onclick="closeSheet();tcvShowFullProfileSettings()">⚙️ ALTRE IMPOSTAZIONI</button>
       </div>
-      <div class="notice green" style="margin-top:11px"><b>Community libera da pagamenti obbligatori</b><br>SOS, mappa pericoli, segnalazioni e QR Community funzionano anche senza Satispay. Patente e pagamenti servono solo per le funzioni che li richiedono.</div>
+      <div class="notice green" style="margin-top:11px"><b>Identità obbligatoria, pagamenti facoltativi</b><br>Per entrare nella Community servono foto riconoscibile e documento registrato. Satispay resta facoltativo e serve solo alle funzioni economiche.</div>
       <button class="btn outline full" style="margin-top:9px" onclick="closeSheet()">Chiudi</button>`);
   };
 
