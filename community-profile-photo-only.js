@@ -1,12 +1,13 @@
-/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V3 */
+/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V4 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V3)return;
-  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V3=true;
+  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V4)return;
+  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V4=true;
 
   const BUCKET='community-avatars';
   const MAX_BYTES=5*1024*1024;
   const TYPES=['image/jpeg','image/png','image/webp'];
+  const EXT_RE=/\.(jpe?g|png|webp)$/i;
   let SELECTED_FILE=null;
   let CAMERA_STREAM=null;
 
@@ -16,29 +17,33 @@
     const sep=base.includes('?')?'&':'?';
     return `${base}${sep}v=${Date.now()}`;
   }
+  function fileOk(file){return !!file && (TYPES.includes(file.type)||(!file.type&&EXT_RE.test(file.name||'')))}
+  function normalizedType(file){
+    if(TYPES.includes(file?.type))return file.type;
+    const n=(file?.name||'').toLowerCase();
+    if(n.endsWith('.png'))return 'image/png';
+    if(n.endsWith('.webp'))return 'image/webp';
+    return 'image/jpeg';
+  }
 
   function compactPhotoButton(){
     return document.querySelector('#tcvCompactCommunityProfile button[aria-label="Gestisci foto profilo"],#tcvCompactCommunityProfile button[aria-label="Cambia foto profilo"]');
   }
-
   function currentPhoto(){
     return compactPhotoButton()?.querySelector('img')?.src||document.querySelector('#avatar img')?.src||'';
   }
-
   function setStatus(text,type){
     const st=document.getElementById('tcvCompactPhotoStatus');
     if(!st)return;
     st.className='notice'+(type?` ${type}`:'');
     st.textContent=text;
   }
-
   function stopCamera(){
     if(CAMERA_STREAM){
       CAMERA_STREAM.getTracks().forEach(t=>t.stop());
       CAMERA_STREAM=null;
     }
   }
-
   function wirePhotoButton(){
     const btn=compactPhotoButton();
     if(!btn)return;
@@ -53,6 +58,29 @@
     };
   }
 
+  function useSelectedFile(file,source){
+    stopCamera();
+    const capture=document.getElementById('tcvCompactCaptureNow');
+    if(capture)capture.style.display='none';
+    const preview=document.getElementById('tcvCompactPhotoPreview');
+    if(!file||!preview)return false;
+    if(!fileOk(file)){
+      SELECTED_FILE=null;
+      setStatus('Formato non supportato. Usa JPG, PNG o WEBP.','yellow');
+      return false;
+    }
+    if(file.size>MAX_BYTES){
+      SELECTED_FILE=null;
+      setStatus('Foto troppo grande: massimo 5 MB.','yellow');
+      return false;
+    }
+    SELECTED_FILE=file;
+    const url=URL.createObjectURL(file);
+    preview.innerHTML=`<img src="${esc(url)}" alt="Anteprima nuova foto" style="width:100%;height:100%;object-fit:cover">`;
+    setStatus((source==='camera'?'Foto scattata':'Foto scelta dalla galleria')+'. Premi “Salva nuova foto”.','green');
+    return true;
+  }
+
   window.tcvOpenCompactPhotoOnly=function(){
     if(typeof window.openSheet!=='function')return;
     stopCamera();
@@ -65,7 +93,7 @@
         </div>
       </div>
 
-      <input id="tcvCompactPhotoGallery" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="tcvPreviewCompactPhotoOnly(this,'gallery')">
+      <input id="tcvCompactPhotoGallery" type="file" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="tcvPreviewCompactPhotoOnly(this,'gallery')">
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px">
         <button id="tcvCompactStartCamera" type="button" class="btn primary" style="min-height:72px;font-size:12px;border-radius:18px" onclick="tcvStartCompactCamera()">📷<br><b>SCATTA FOTO</b></button>
@@ -73,16 +101,51 @@
       </div>
 
       <button id="tcvCompactCaptureNow" type="button" class="btn teal full" style="display:none;margin-top:10px;padding:14px" onclick="tcvCaptureCompactCamera()">📸 SCATTA ADESSO</button>
-      <div id="tcvCompactPhotoStatus" class="notice" style="margin-top:10px">La fotocamera può chiederti il consenso la prima volta.</div>
+      <div id="tcvCompactPhotoStatus" class="notice" style="margin-top:10px">Fotocamera e galleria sono separate. La fotocamera può chiedere il consenso la prima volta.</div>
       <button id="tcvCompactPhotoSave" class="btn teal full" style="margin-top:10px;padding:14px" onclick="tcvSaveCompactPhotoOnly()">✓ SALVA NUOVA FOTO</button>
       <button class="btn outline full" style="margin-top:8px" onclick="tcvCloseCompactPhotoOnly()">Chiudi</button>`);
   };
 
-  window.tcvChooseCompactGallery=function(){
+  window.tcvChooseCompactGallery=async function(){
     stopCamera();
     const capture=document.getElementById('tcvCompactCaptureNow');
     if(capture)capture.style.display='none';
-    document.getElementById('tcvCompactPhotoGallery')?.click();
+    setStatus('Apro la galleria…','');
+
+    if(typeof window.showOpenFilePicker==='function'){
+      try{
+        const handles=await window.showOpenFilePicker({
+          multiple:false,
+          excludeAcceptAllOption:true,
+          types:[{
+            description:'Foto',
+            accept:{
+              'image/jpeg':['.jpg','.jpeg'],
+              'image/png':['.png'],
+              'image/webp':['.webp']
+            }
+          }]
+        });
+        const file=handles?.[0]?await handles[0].getFile():null;
+        if(file)useSelectedFile(file,'gallery');
+        return;
+      }catch(e){
+        if(e?.name==='AbortError'){setStatus('Selezione annullata.','');return}
+        console.warn('gallery picker fallback',e);
+      }
+    }
+
+    const input=document.getElementById('tcvCompactPhotoGallery');
+    if(!input)return;
+    input.removeAttribute('capture');
+    input.setAttribute('accept','.jpg,.jpeg,.png,.webp');
+    input.value='';
+    try{
+      if(typeof input.showPicker==='function')input.showPicker();
+      else input.click();
+    }catch(_e){
+      input.click();
+    }
   };
 
   window.tcvStartCompactCamera=async function(){
@@ -101,16 +164,10 @@
     if(start){start.disabled=true;start.innerHTML='📷<br><b>APRO…</b>'}
     setStatus('Apro la fotocamera… Se richiesto, premi Consenti.','');
     try{
-      CAMERA_STREAM=await navigator.mediaDevices.getUserMedia({
-        video:{facingMode:{ideal:'user'},width:{ideal:720},height:{ideal:720}},
-        audio:false
-      });
+      CAMERA_STREAM=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:720},height:{ideal:720}},audio:false});
       preview.innerHTML='<video id="tcvCompactLiveCamera" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1)"></video>';
       const video=document.getElementById('tcvCompactLiveCamera');
-      if(video){
-        video.srcObject=CAMERA_STREAM;
-        try{await video.play()}catch(_e){}
-      }
+      if(video){video.srcObject=CAMERA_STREAM;try{await video.play()}catch(_e){}}
       if(capture)capture.style.display='block';
       setStatus('Fotocamera pronta. Inquadrati e premi “Scatta adesso”.','green');
     }catch(e){
@@ -131,48 +188,22 @@
       setStatus('La fotocamera non è ancora pronta. Riprova tra un istante.','yellow');
       return;
     }
-
     const size=Math.min(video.videoWidth,video.videoHeight);
     const sx=(video.videoWidth-size)/2;
     const sy=(video.videoHeight-size)/2;
     const canvas=document.createElement('canvas');
-    canvas.width=720;
-    canvas.height=720;
+    canvas.width=720;canvas.height=720;
     const ctx=canvas.getContext('2d');
     ctx.drawImage(video,sx,sy,size,size,0,0,720,720);
-
     canvas.toBlob(blob=>{
       if(!blob){setStatus('Non riesco a creare la foto. Riprova.','yellow');return}
-      SELECTED_FILE=new File([blob],`profilo-${Date.now()}.jpg`,{type:'image/jpeg'});
-      const url=URL.createObjectURL(blob);
-      preview.innerHTML=`<img src="${esc(url)}" alt="Anteprima nuova foto" style="width:100%;height:100%;object-fit:cover">`;
-      stopCamera();
-      if(capture)capture.style.display='none';
-      setStatus('Foto scattata. Se ti piace premi “Salva nuova foto”.','green');
+      const file=new File([blob],`profilo-${Date.now()}.jpg`,{type:'image/jpeg'});
+      useSelectedFile(file,'camera');
     },'image/jpeg',0.9);
   };
 
   window.tcvPreviewCompactPhotoOnly=function(input,source){
-    stopCamera();
-    const capture=document.getElementById('tcvCompactCaptureNow');
-    if(capture)capture.style.display='none';
-    const file=input?.files?.[0];
-    const preview=document.getElementById('tcvCompactPhotoPreview');
-    if(!file||!preview)return;
-    if(!TYPES.includes(file.type)){
-      SELECTED_FILE=null;
-      setStatus('Formato non supportato. Usa JPG, PNG o WEBP.','yellow');
-      return;
-    }
-    if(file.size>MAX_BYTES){
-      SELECTED_FILE=null;
-      setStatus('Foto troppo grande: massimo 5 MB.','yellow');
-      return;
-    }
-    SELECTED_FILE=file;
-    const url=URL.createObjectURL(file);
-    preview.innerHTML=`<img src="${esc(url)}" alt="Anteprima nuova foto" style="width:100%;height:100%;object-fit:cover">`;
-    setStatus((source==='camera'?'Foto scattata':'Foto scelta dalla galleria')+'. Premi “Salva nuova foto”.','green');
+    useSelectedFile(input?.files?.[0],source);
   };
 
   window.tcvSaveCompactPhotoOnly=async function(){
@@ -180,32 +211,21 @@
     const btn=document.getElementById('tcvCompactPhotoSave');
     const file=SELECTED_FILE;
     const uid=window.SESSION?.user?.id;
-
     stopCamera();
-    if(!uid||!window.db){
-      setStatus('Sessione non disponibile. Chiudi e riapri Tanto Ci Vai.','yellow');
-      return;
-    }
-    if(!file){
-      setStatus('Scatta una foto oppure scegline una dalla galleria.','yellow');
-      return;
-    }
-    if(!TYPES.includes(file.type)){
-      setStatus('Formato non supportato. Usa JPG, PNG o WEBP.','yellow');
-      return;
-    }
-    if(file.size>MAX_BYTES){
-      setStatus('Foto troppo grande: massimo 5 MB.','yellow');
-      return;
-    }
+
+    if(!uid||!window.db){setStatus('Sessione non disponibile. Chiudi e riapri Tanto Ci Vai.','yellow');return}
+    if(!file){setStatus('Scatta una foto oppure scegline una dalla galleria.','yellow');return}
+    if(!fileOk(file)){setStatus('Formato non supportato. Usa JPG, PNG o WEBP.','yellow');return}
+    if(file.size>MAX_BYTES){setStatus('Foto troppo grande: massimo 5 MB.','yellow');return}
 
     if(btn){btn.disabled=true;btn.textContent='SALVO LA FOTO…'}
     if(st){st.className='notice';st.textContent='Aggiorno la fotografia…'}
 
     try{
-      const ext=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
+      const mime=normalizedType(file);
+      const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
       const path=`${uid}/avatar.${ext}`;
-      const up=await db.storage.from(BUCKET).upload(path,file,{upsert:true,contentType:file.type,cacheControl:'60'});
+      const up=await db.storage.from(BUCKET).upload(path,file,{upsert:true,contentType:mime,cacheControl:'60'});
       if(up.error)throw up.error;
 
       const pub=db.storage.from(BUCKET).getPublicUrl(path);
@@ -220,7 +240,6 @@
       const preview=document.getElementById('tcvCompactPhotoPreview');
       if(preview)preview.innerHTML=`<img src="${esc(url)}" alt="Nuova foto profilo" style="width:100%;height:100%;object-fit:cover">`;
       if(typeof window.tcvRefreshHeaderCommunityAvatar==='function')await window.tcvRefreshHeaderCommunityAvatar();
-
       if(st){st.className='notice green';st.textContent='✓ Foto aggiornata. È già attiva nel tuo profilo Community.'}
       SELECTED_FILE=null;
       const gal=document.getElementById('tcvCompactPhotoGallery');
@@ -234,19 +253,13 @@
     }
   };
 
-  window.tcvCloseCompactPhotoOnly=function(){
-    stopCamera();
-    if(typeof window.closeSheet==='function')closeSheet();
-  };
+  window.tcvCloseCompactPhotoOnly=function(){stopCamera();if(typeof window.closeSheet==='function')closeSheet()};
 
   function install(){
     wirePhotoButton();
     const host=document.getElementById('profile');
     if(host)new MutationObserver(()=>setTimeout(wirePhotoButton,20)).observe(host,{childList:true,subtree:true});
-    setInterval(()=>{
-      wirePhotoButton();
-      if(CAMERA_STREAM&&!document.getElementById('tcvCompactLiveCamera'))stopCamera();
-    },800);
+    setInterval(()=>{wirePhotoButton();if(CAMERA_STREAM&&!document.getElementById('tcvCompactLiveCamera'))stopCamera()},800);
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
