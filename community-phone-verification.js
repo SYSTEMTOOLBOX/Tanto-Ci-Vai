@@ -35,25 +35,38 @@
   }
 
   async function invoke(action){
-    const {data:{session}}=await db.auth.getSession();
-    if(!session?.access_token)throw new Error('Sessione scaduta. Chiudi e riapri Tanto Ci Vai.');
-    const {data,error}=await db.functions.invoke('satispay-account',{
-      body:{action},
-      headers:{Authorization:`Bearer ${session.access_token}`}
-    });
-    if(error){
-      let detail=error?.message||'Errore Satispay';
-      try{
-        const response=error?.context;
-        if(response&&typeof response.clone==='function'){
-          const payload=await response.clone().json();
-          detail=payload?.error||payload?.message||detail;
-        }
-      }catch(e){}
-      throw new Error(detail);
+    const {data:{session},error:sessionError}=await db.auth.getSession();
+    if(sessionError||!session?.access_token)throw new Error('Sessione scaduta. Chiudi e riapri Tanto Ci Vai.');
+
+    const base=String(db.supabaseUrl||'https://qdsphfmcibrveygkmyex.supabase.co').replace(/\/$/,'');
+    const key=String(db.supabaseKey||'');
+    const headers={
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${session.access_token}`
+    };
+    if(key)headers.apikey=key;
+
+    let response;
+    try{
+      response=await fetch(`${base}/functions/v1/satispay-account`,{
+        method:'POST',
+        headers,
+        body:JSON.stringify({action}),
+        cache:'no-store'
+      });
+    }catch(e){
+      throw new Error('Connessione al servizio Satispay non riuscita: '+(e?.message||e));
     }
-    if(data?.error)throw new Error(data.error);
-    return data||{};
+
+    const text=await response.text();
+    let payload={};
+    try{payload=text?JSON.parse(text):{}}catch(e){payload={raw:text}}
+    if(!response.ok){
+      const detail=payload?.error||payload?.message||payload?.raw||`Errore HTTP ${response.status}`;
+      throw new Error(`Satispay account ${response.status}: ${String(detail).slice(0,260)}`);
+    }
+    if(payload?.error)throw new Error(payload.error);
+    return payload||{};
   }
 
   window.tcvOpenAccountConfirmation=async function(){
