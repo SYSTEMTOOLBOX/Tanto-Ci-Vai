@@ -28,7 +28,7 @@
   function loadCommunityPhoneVerification(){
     if(window.TCV_COMMUNITY_ACCOUNT_CONFIRMATION_V1||window.TCV_COMMUNITY_PHONE_VERIFICATION_V1||document.querySelector('script[data-tcv-community-phone-verification]'))return;
     const s=document.createElement('script');
-    s.src='./community-phone-verification.js?v=2';
+    s.src='./community-phone-verification.js?v=3';
     s.async=true;
     s.dataset.tcvCommunityPhoneVerification='1';
     document.head.appendChild(s)
