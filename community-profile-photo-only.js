@@ -1,8 +1,8 @@
-/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V5 */
+/* TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V6 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V5)return;
-  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V5=true;
+  if(window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V6)return;
+  window.TCV_COMMUNITY_PROFILE_PHOTO_ONLY_V6=true;
 
   const BUCKET='community-avatars';
   const MAX_BYTES=5*1024*1024;
@@ -28,6 +28,15 @@
   }
   function wait(ms){return new Promise(r=>setTimeout(r,ms))}
   function timeoutPromise(ms,label){return new Promise((_,reject)=>setTimeout(()=>reject(new Error(label||'Timeout')),ms))}
+  function dataUrlToFile(dataUrl,name){
+    const parts=String(dataUrl||'').split(',');
+    if(parts.length<2)throw new Error('Foto non disponibile.');
+    const mime=(parts[0].match(/data:([^;]+)/)||[])[1]||'image/jpeg';
+    const binary=atob(parts[1]);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return new File([bytes],name,{type:mime});
+  }
 
   function compactPhotoButton(){
     return document.querySelector('#tcvCompactCommunityProfile button[aria-label="Gestisci foto profilo"],#tcvCompactCommunityProfile button[aria-label="Cambia foto profilo"]');
@@ -40,6 +49,12 @@
     if(!st)return;
     st.className='notice'+(type?` ${type}`:'');
     st.textContent=text;
+  }
+  function resetCameraButtons(){
+    const start=document.getElementById('tcvCompactStartCamera');
+    if(start){start.disabled=false;start.innerHTML='📷<br><b>SCATTA FOTO</b>'}
+    const capture=document.getElementById('tcvCompactCaptureNow');
+    if(capture){capture.disabled=false;capture.textContent='📸 SCATTA ADESSO'}
   }
   function stopCamera(){
     CAMERA_OPENING=false;
@@ -69,6 +84,7 @@
 
   function useSelectedFile(file,source){
     stopCamera();
+    resetCameraButtons();
     const capture=document.getElementById('tcvCompactCaptureNow');
     if(capture)capture.style.display='none';
     const preview=document.getElementById('tcvCompactPhotoPreview');
@@ -117,6 +133,7 @@
 
   window.tcvChooseCompactGallery=async function(){
     stopCamera();
+    resetCameraButtons();
     const capture=document.getElementById('tcvCompactCaptureNow');
     if(capture)capture.style.display='none';
     setStatus('Apro la galleria…','');
@@ -192,10 +209,15 @@
       await wait(150);
 
       if(!video.videoWidth||!video.videoHeight)throw new Error('Il video della fotocamera non è pronto.');
+
+      // La camera è davvero pronta: chiudiamo subito lo stato APRO… prima di mostrare SCATTA ADESSO.
+      CAMERA_OPENING=false;
+      resetCameraButtons();
       if(capture)capture.style.display='block';
       setStatus('Fotocamera pronta. Inquadrati e premi “Scatta adesso”.','green');
     }catch(e){
       stopCamera();
+      resetCameraButtons();
       const denied=e?.name==='NotAllowedError'||e?.name==='PermissionDeniedError';
       const busy=e?.name==='NotReadableError'||e?.name==='TrackStartError';
       if(denied)setStatus('Permesso fotocamera negato. Consenti la fotocamera oppure usa Galleria.','yellow');
@@ -204,7 +226,7 @@
       if(capture)capture.style.display='none';
     }finally{
       CAMERA_OPENING=false;
-      if(start){start.disabled=false;start.innerHTML='📷<br><b>SCATTA FOTO</b>'}
+      if(start&&start.disabled){start.disabled=false;start.innerHTML='📷<br><b>SCATTA FOTO</b>'}
     }
   };
 
@@ -212,25 +234,43 @@
     const video=document.getElementById('tcvCompactLiveCamera');
     const preview=document.getElementById('tcvCompactPhotoPreview');
     const capture=document.getElementById('tcvCompactCaptureNow');
+    const start=document.getElementById('tcvCompactStartCamera');
     if(!video||!preview||video.readyState<2||!video.videoWidth||!video.videoHeight){
       setStatus('La fotocamera non è ancora pronta. Riprova tra un istante.','yellow');
       return;
     }
-    if(capture){capture.disabled=true;capture.textContent='📸 SCATTO…'}
-    const size=Math.min(video.videoWidth,video.videoHeight);
-    const sx=(video.videoWidth-size)/2;
-    const sy=(video.videoHeight-size)/2;
-    const canvas=document.createElement('canvas');
-    canvas.width=720;canvas.height=720;
-    const ctx=canvas.getContext('2d');
-    ctx.translate(720,0);ctx.scale(-1,1);
-    ctx.drawImage(video,sx,sy,size,size,0,0,720,720);
-    canvas.toBlob(blob=>{
-      if(capture){capture.disabled=false;capture.textContent='📸 SCATTA ADESSO'}
-      if(!blob){setStatus('Non riesco a creare la foto. Riprova.','yellow');return}
-      const file=new File([blob],`profilo-${Date.now()}.jpg`,{type:'image/jpeg'});
-      useSelectedFile(file,'camera');
-    },'image/jpeg',0.88);
+
+    try{
+      if(capture){capture.disabled=true;capture.textContent='📸 SCATTO…'}
+      if(start){start.disabled=true;start.innerHTML='📷<br><b>SCATTO…</b>'}
+
+      const size=Math.min(video.videoWidth,video.videoHeight);
+      const sx=(video.videoWidth-size)/2;
+      const sy=(video.videoHeight-size)/2;
+      const canvas=document.createElement('canvas');
+      canvas.width=720;canvas.height=720;
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('Impossibile acquisire la foto.');
+      ctx.translate(720,0);ctx.scale(-1,1);
+      ctx.drawImage(video,sx,sy,size,size,0,0,720,720);
+
+      // Su alcuni Android canvas.toBlob resta sospeso: usiamo uno snapshot sincrono.
+      const dataUrl=canvas.toDataURL('image/jpeg',0.88);
+      const file=dataUrlToFile(dataUrl,`profilo-${Date.now()}.jpg`);
+      if(file.size>MAX_BYTES)throw new Error('Foto troppo grande. Riprova.');
+
+      SELECTED_FILE=file;
+      stopCamera();
+      resetCameraButtons();
+      if(capture)capture.style.display='none';
+      preview.innerHTML=`<img src="${dataUrl}" alt="Anteprima foto scattata" style="width:100%;height:100%;object-fit:cover">`;
+      setStatus('✓ Foto scattata. Se ti piace, premi “Salva nuova foto”.','green');
+    }catch(e){
+      stopCamera();
+      resetCameraButtons();
+      if(capture)capture.style.display='none';
+      setStatus('Non riesco a completare lo scatto: '+(e?.message||e)+'. Puoi riprovare oppure usare Galleria.','yellow');
+    }
   };
 
   window.tcvPreviewCompactPhotoOnly=function(input,source){useSelectedFile(input?.files?.[0],source)};
@@ -241,6 +281,7 @@
     const file=SELECTED_FILE;
     const uid=window.SESSION?.user?.id;
     stopCamera();
+    resetCameraButtons();
 
     if(!uid||!window.db){setStatus('Sessione non disponibile. Chiudi e riapri Tanto Ci Vai.','yellow');return}
     if(!file){setStatus('Scatta una foto oppure scegline una dalla galleria.','yellow');return}
@@ -282,7 +323,7 @@
     }
   };
 
-  window.tcvCloseCompactPhotoOnly=function(){stopCamera();if(typeof window.closeSheet==='function')closeSheet()};
+  window.tcvCloseCompactPhotoOnly=function(){stopCamera();resetCameraButtons();if(typeof window.closeSheet==='function')closeSheet()};
 
   function install(){
     wirePhotoButton();
