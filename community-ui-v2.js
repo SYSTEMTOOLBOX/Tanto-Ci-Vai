@@ -25,6 +25,15 @@
     document.head.appendChild(s)
   }
 
+  function loadCommunityPhoneVerification(){
+    if(window.TCV_COMMUNITY_PHONE_VERIFICATION_V1||document.querySelector('script[data-tcv-community-phone-verification]'))return;
+    const s=document.createElement('script');
+    s.src='./community-phone-verification.js?v=1';
+    s.async=true;
+    s.dataset.tcvCommunityPhoneVerification='1';
+    document.head.appendChild(s)
+  }
+
   function wireHeaderProfile(){
     const btn=document.getElementById('avatar');
     if(!btn)return;
@@ -52,7 +61,8 @@
       'tcvCommunityProfileMainCard',
       'tcvMainCommunityProfileCard',
       'tcvCommunityDocumentCard',
-      'tcvQrProfileActions'
+      'tcvQrProfileActions',
+      'tcvPhoneVerifyAction'
     ].forEach(id=>keepOnlyOne(host,id));
     host.querySelectorAll('.wallet-mini').forEach(el=>el.remove());
   }
@@ -144,6 +154,7 @@
   function install(){
     loadCommunityDocumentsModule();
     loadCommunityDocumentUiFix();
+    loadCommunityPhoneVerification();
     wireHeaderProfile();
 
     const oldPage=window.page;
