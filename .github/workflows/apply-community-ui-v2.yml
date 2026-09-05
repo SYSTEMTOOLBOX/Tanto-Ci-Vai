@@ -8,6 +8,7 @@ on:
       - 'community-document-ui-fix.js'
       - 'community-phone-verification.js'
       - 'satispay-profile-status.js'
+      - 'community-profile-compact.js'
       - 'scripts/apply_community_ui_v2.py'
       - '.github/workflows/apply-community-ui-v2.yml'
 
@@ -33,6 +34,7 @@ jobs:
           node --check community-document-ui-fix.js
           node --check community-phone-verification.js
           node --check satispay-profile-status.js
+          node --check community-profile-compact.js
       - name: Commit changes
         run: |
           if git diff --quiet; then
@@ -42,5 +44,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Wire Community phone verification UI [skip ci]"
+          git commit -m "Wire compact Community profile UI [skip ci]"
           git push
