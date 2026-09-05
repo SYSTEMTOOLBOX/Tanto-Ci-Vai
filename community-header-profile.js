@@ -1,10 +1,23 @@
-/* TCV_COMMUNITY_HEADER_PROFILE_V1 */
+/* TCV_COMMUNITY_HEADER_PROFILE_V2 */
 (function(){
   'use strict';
-  if(window.TCV_COMMUNITY_HEADER_PROFILE_V1)return;
-  window.TCV_COMMUNITY_HEADER_PROFILE_V1=true;
+  if(window.TCV_COMMUNITY_HEADER_PROFILE_V2)return;
+  window.TCV_COMMUNITY_HEADER_PROFILE_V2=true;
 
   function forceProfilePage(){
+    const profile=document.getElementById('profile');
+
+    // Se il Profilo è già aperto, non richiamare page('profile'):
+    // il rerender del profilo legacy può riapparire sopra al profilo compatto.
+    if(profile&&!profile.classList.contains('hidden')){
+      try{
+        if(typeof window.tcvRefreshCompactCommunityProfile==='function'){
+          window.tcvRefreshCompactCommunityProfile();
+        }
+      }catch(_e){}
+      return;
+    }
+
     try{
       if(typeof window.closeSheet==='function')window.closeSheet();
     }catch(_e){}
@@ -18,10 +31,10 @@
       window.scrollTo(0,0);
     }
 
-    // Safety net: if another runtime wrapper changed page immediately, restore Profile.
+    // Safety net: se un altro wrapper cambia pagina subito dopo, ripristina Profilo.
     setTimeout(()=>{
-      const profile=document.getElementById('profile');
-      if(!profile||!profile.classList.contains('hidden'))return;
+      const p=document.getElementById('profile');
+      if(!p||!p.classList.contains('hidden'))return;
       ['home','available','missions','myreq','mapPage','wallet','profile'].forEach(id=>{
         document.getElementById(id)?.classList.toggle('hidden',id!=='profile');
       });
@@ -46,8 +59,8 @@
     btn.style.position='relative';
     btn.style.zIndex='50';
     btn.style.pointerEvents='auto';
-    if(btn.__tcvHeaderProfileV1)return;
-    btn.__tcvHeaderProfileV1=true;
+    if(btn.__tcvHeaderProfileV2)return;
+    btn.__tcvHeaderProfileV2=true;
     btn.addEventListener('click',onAvatarClick,true);
   }
 
